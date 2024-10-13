@@ -13,7 +13,6 @@ section .text
 _start:
     ; 1st = arg count, 2nd first item
     ; c: rdi, rsi
-    
     pop rdi
     pop rsi
     

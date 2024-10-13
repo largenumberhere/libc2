@@ -12,7 +12,7 @@ extern int main(int argc, char* argv[]);
 extern void sys_exit(int status);
 extern int sys_write(int fd, const void* buff, size_t count);
 
-void handle_format(char* string, size_t len, size_t offset){
+static void handle_format(char* string, size_t len, size_t offset){
 
 }
 
@@ -75,22 +75,8 @@ static void write_int(int val) {
 	sys_write(1, buff, len);
 }
 
-
-static void putc2(char c, int stream) {
-	sys_write(stream, &c, 1);
-}
-
-// static char buffer[128] = {0};
-// static int buffer_pos = 0;
 void putc(char c, int stream) {
-	// if (buffer_pos >= 128) {
-	// 	sys_write(stream, buffer, 128);
-	// 	buffer_pos = 0;
-	// }
-
-	
-	// buffer[buffer_pos++] = c;
-	putc2(c, stream);
+	sys_write(stream, &c, 1);
 }
 
 
@@ -210,10 +196,10 @@ int printf(char* format, ...){
 					ignore_count++;
 				} else if(fmt[i+1]=='c') {
 					char c = va_arg(ap, char);
-					putc2(c, 1);
+					putc(c, 1);
 					ignore_count++;	
 				} else {
-					putc2(fmt[i], 1);
+					putc(fmt[i], 1);
 				}
 
 				
@@ -236,7 +222,7 @@ int printf(char* format, ...){
 
 			// ignore_count+=i-1;
 
-			putc2(fmt[i], 1);
+			putc(fmt[i], 1);
 		}
 	}
 	
