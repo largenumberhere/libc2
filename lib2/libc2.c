@@ -1,3 +1,5 @@
+#include "syscall.h"
+
 #include <stdarg.h>
 
 #define true 1
@@ -9,8 +11,8 @@
 #define NULL (void*)0
 
 extern int main(int argc, char* argv[]);
-extern void sys_exit(int status);
-extern int sys_write(int fd, const void* buff, size_t count);
+
+static void puts_l(const char* buffer, size_t len);
 
 static void handle_format(char* string, size_t len, size_t offset){
 
@@ -72,13 +74,58 @@ static void write_int(int val) {
 	char buff[32] = {0};
 	itoa((size_t)val, &len, &buff);
 	
-	sys_write(1, buff, len);
+	puts_l(buff, len);
+	//sys_write(1, buff, len);
+	sys_write(1, "write_int", 10);
 }
+
+
+
+
+static char putc_buffer[129] = {0}; 
+static size_t putc_pos = 0;
 
 void putc(char c, int stream) {
-	sys_write(stream, &c, 1);
+	if (stream == 1) {
+		putc_buffer[putc_pos++] = c;
+		
+		if (putc_pos >= 128 || c=='\n') {
+			sys_write(1, putc_buffer, putc_pos);
+			putc_pos = 0;		
+		} 
+		
+		
+	}
+
+	else {
+		printf("unsupported stream used '%i'\n", stream);
+	}
 }
 
+// void putc(char c, int stream) {
+// 	sys_write(1, &c, 1);
+// }
+
+static void flush_putc() {
+	if (putc_pos > 0) {
+	
+		sys_write(1, putc_buffer, putc_pos);
+		putc_pos = 0;		
+	}
+}
+
+void puts(const char* buffer) {
+	size_t len = strlen(buffer);
+	for (size_t i = 0; i < len; i++) {
+		putc(buffer[i], 1);
+	}
+}
+
+static void puts_l(const char* buffer, size_t len) {
+	for(size_t i = 0; i < len; i++) {
+		putc(buffer[i], 1);
+	}
+}
 
 void memcpy(void* dest, const void* src, size_t n) {
 	for(size_t i = 0; i < n; i++){
@@ -184,20 +231,25 @@ int printf(char* format, ...){
 			continue;
 		}
 
+		int pc_pos = find_delim(fmt, '%', i);
+
+
 		if (fmt[i] == '%') {
 			if(i+1<len) {
 		 		if (fmt[i+1]=='i' || fmt[i+1]=='d'){
 					int a = va_arg(ap, int);
 					write_int(a);
-					ignore_count++;
+					ignore_count+=2;
 				} else if (fmt[i+1] == 's') {
 					char* s = va_arg(ap, char*);
-					sys_write(1, (char*)s, strlen(s));				
-					ignore_count++;
+					puts(s);
+					//sys_write(1, (char*)s, strlen(s));				
+					i+=1;
 				} else if(fmt[i+1]=='c') {
 					char c = va_arg(ap, char);
 					putc(c, 1);
-					ignore_count++;	
+					i+=1;
+					//ignore_count+=3;	
 				} else {
 					putc(fmt[i], 1);
 				}
@@ -222,6 +274,14 @@ int printf(char* format, ...){
 
 			// ignore_count+=i-1;
 
+			// int left = 0;
+			// for(; true; left++) {
+			// 	if(fmt[left]!='%' || fmt[left]!='\0') {
+			// 		break;
+			// 	}
+			// }
+			// sys_write(1, fmt+i, left);
+			// ignore_count+=left;
 			putc(fmt[i], 1);
 		}
 	}
@@ -235,7 +295,7 @@ int printf(char* format, ...){
 
 static int exit_code = 0;
 void __deinit(){
-
+	flush_putc();
 	sys_exit(exit_code);
 }
 
@@ -262,7 +322,7 @@ void __c_entry(int argc, char* first_arg) {
 	collect_args(argc, first_arg, &args);
 
 	__init();
-	main(argc, &args);
+	exit_code = main(argc, &args);
 
 	__deinit();
 }
@@ -338,25 +398,66 @@ int open(const char* filename, int flags) {
 }
 
 
+
+
+//extern size_t sys_read(int fd, char* buffer, size_t count);
+
+static char file_buffers[128][32] = {0};
+static size_t file_buffers_pos[32] = {0};
+static size_t file_buffers_len[32] = {0};
+static int eofs[32] = {0};
+
+int fgetc(FILE* stream) {
+	int fd = stream->fd;
+	
+	if (file_buffers_pos[fd] >= file_buffers_len[fd]) {
+	
+		if (eofs[fd]) {
+			return (char) -1;
+		}
+
+		file_buffers_len[fd] = sys_read(fd, file_buffers[fd], 127);
+		eofs[fd] = file_buffers_len[fd] < 127;
+		file_buffers_pos[fd] = 0;
+	}
+
+	return file_buffers[fd][file_buffers_pos[fd]++];
+
+	// int fd = stream->fd;
+	// if (file_buffers_pos[fd] == 128) {
+	// 	if (eof[fd] == true) {
+	// 		return (char)-1;
+	// 	}
+	// 	int count = sys_read(fd, file_buffers[fd], 128);
+	// 	if (count < 128) {
+	// 		eof[fd] = true;
+	// 	}
+	// } 
+	
+
+	// return (char) file_buffers[fd][file_buffers_pos[fd]];
+
+	
+	// const char buffer[2] = {0};
+	// size_t count = sys_read(stream->fd, buffer, 1);
+	// //printf("%i", count);
+	// if (count == 0) {
+	// 	return (char)-1;
+	// }
+
+	// return (char) buffer[0];
+}
 int fclose(FILE* stream) {
 	int fd = stream->fd;
+
+	memset(file_buffers[fd],0,128);
+	file_buffers_len[fd] = 0;
+	file_buffers_pos[fd] = 0;
+
 	sys_close(fd);
 
 	return 0;	// success
 }
-
-extern size_t sys_read(int fd, char* buffer, size_t count);
-
-int fgetc(FILE* stream) {
-	const char buffer[2] = {0};
-	size_t count = sys_read(stream->fd, buffer, 1);
-	if (count == 0) {
-		return (char)-1;
-	}
-
-	return (char) buffer[0];
-}
-
 
 void exit(int status) {
 	exit_code = status;

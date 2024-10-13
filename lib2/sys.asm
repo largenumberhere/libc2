@@ -19,9 +19,9 @@ _start:
     ; argv, argc 
     call __c_entry
 
-sys_exit:
-    mov rax, 60
-    syscall
+; sys_exit:
+;     mov rax, 60
+;     syscall
 
 ; c: rdi, rsi, rdx, rcx, r8, r9
 ; c: int, const void*, size_t
@@ -29,10 +29,10 @@ sys_exit:
 
 ; sys:rax, rdi, rsi, rdx, r10, r8, r9
 ; rax=fd, buf, count
-sys_write:
-    mov rax, 1
-    syscall
-    ret
+; sys_write:
+;     mov rax, 1
+;     syscall
+;     ret
 
 ; const char* pathname, int flags, mode_t mode
 sys_open:
@@ -45,10 +45,10 @@ sys_close:
     syscall
     ret
 
-sys_read:
-    mov rax, 0
-    syscall
-    ret
+; sys_read:
+;     mov rax, 0
+;     syscall
+;     ret
 
 ; calculate the decimal representation of an unsigned number and write it to a buffer
 ; inputs:
