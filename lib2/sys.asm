@@ -35,10 +35,10 @@ _start:
 ;     ret
 
 ; const char* pathname, int flags, mode_t mode
-sys_open:
-    mov rax, 2
-    syscall
-    ret
+; sys_open:
+;     mov rax, 2
+;     syscall
+;     ret
 
 sys_close:
     mov rax, 3

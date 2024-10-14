@@ -1,3 +1,16 @@
+/*
+`fread'
+ `abs'
+ `calloc'
+ `fread'
+ `fseek'
+ `fwrite'
+ `fwrite'
+ `fwrite'
+ `fputc'
+
+ */
+
 #include "syscall.h"
 
 #include <stdarg.h>
@@ -10,11 +23,93 @@
 
 #define NULL (void*)0
 
+int abs(int j) {
+	if (j < 0) {
+		return -j;
+	}
+
+	return j;
+}
+
 extern int main(int argc, char* argv[]);
 
 static void puts_l(const char* buffer, size_t len);
 
 static void handle_format(char* string, size_t len, size_t offset){
+
+}
+
+int brk(void* addr) {
+	return (int) sys_brk((void*)addr);
+}
+
+/* increase program break by increment bytes */
+void* sbrk(void* increment){
+	unsigned long brk_current = brk(NULL);
+	// if(brk_current == 0) {
+	// 	brk_current = brk(NULL);
+	// }
+
+	brk((brk_current + increment));
+
+	return (void*) brk_current;
+}
+
+
+static ssize_t pointers = 0;
+static void* alloc_start = NULL;
+static size_t alloc_size = 0;
+void* malloc(size_t size) {
+	if (alloc_start == 0) {
+		unsigned long brk_val = sbrk(0);
+		alloc_start = (void*) brk_val;
+	}
+
+	void* allocated = (void*) sbrk(size);
+
+	pointers +=1;
+	alloc_size += size;
+
+	return allocated;
+} 
+
+void *calloc(size_t nmemb, size_t size) {
+	ssize_t res = (ssize_t) nmemb * (ssize_t) size;
+	if (res < 0) {
+		printf("Calloc failed because size was too big\n");
+		return NULL;
+	}
+
+	// printf("allocating %i", (int)res);
+	void* buff = malloc((size_t)res);
+	// printf("clearing buffer\n");
+	memset(buff, 0, res);
+
+	// printf("allocated %i\n", (int)res);
+
+	return buff;
+}
+
+void free(void* ptr) {
+	if (ptr == NULL) {
+		return;
+	}
+
+	pointers -=1;
+
+	if (pointers < 0) {
+		printf("Double free detected\n");
+		return;
+	}
+
+	// de-allocate if all pointers are freed
+	if (pointers <= 0) {
+		brk((void*) alloc_start);
+		alloc_size = 0;	
+		return;
+	}
+
+	return;
 
 }
 
@@ -76,7 +171,7 @@ static void write_int(int val) {
 	
 	puts_l(buff, len);
 	//sys_write(1, buff, len);
-	sys_write(1, "write_int", 10);
+	//sys_write(1, "write_int", 10);
 }
 
 
@@ -370,6 +465,9 @@ static int files_len = 0;
 
 #define mode_t int
 FILE* fopen(const char* pathname, const char*mode) {
+	#define O_CREAT 0100
+	#define O_WRONLY 01
+
 	if(files_len >=32) {
 		return NULL;
 	}
@@ -382,6 +480,11 @@ FILE* fopen(const char* pathname, const char*mode) {
 		int fd = sys_open(pathname, 0, modet);
 		f->fd = fd;
 	}
+	else if(mode[0] == 'w' && mode[1] == '\0') {
+		mode_t modet = 0070;
+		int fd = sys_open(pathname,O_CREAT | O_WRONLY, modet);
+		f->fd = fd;
+	}
 	else {
 		return NULL;
 	}
@@ -389,13 +492,52 @@ FILE* fopen(const char* pathname, const char*mode) {
 	return f;
 }
 
+int fputc(int c, FILE* stream) {
+	sys_write(stream->fd, &c, 1);
+	return (unsigned char) c;
+}
+
+size_t fwrite(const void * ptr, size_t size, size_t nmemb, FILE* stream) {
+	return sys_write(stream->fd, (char*)ptr, nmemb*size);
+}
+
+#define SEEK_CUR 1
+int fseek(FILE* stream, long offset, int whence) {
+	if (whence == SEEK_CUR) {
+		for(size_t i = 0; i < offset; i++) {
+			int _ =fgetc(stream);
+		}
+
+		return 0;
+	} else {
+		return -1;
+	}
+
+}
+
+size_t fread(void* ptr, size_t size, size_t nmemb, FILE* stream) {
+	size_t i = 0;
+	
+	for (; i < size*nmemb; i++) {
+		char f = fgetc(stream);
+		if ((char)i == -1) {
+			break;
+		}
+		((char*)ptr)[i] = f;
+	}
+	
+	return i;
+}
+
+
+
 // int open(const char* filename, int flags, mode_t mode) {
 
 // }
 
-int open(const char* filename, int flags) {
-	return -1;
-}
+// int open(const char* filename, int flags) {
+// 	return -1;
+// }
 
 
 

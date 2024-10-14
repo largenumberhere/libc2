@@ -63,7 +63,7 @@ static size_t syscall1(size_t id/*rdi */, size_t reg1/*rsi */) {
 	); 
 	
 	
-    
+
 	// rax = rdi
 	// asm("movq %rdi, %rax");
 	// asm("movq %rsi, %rdi");
@@ -85,4 +85,14 @@ void sys_exit(int status) {
 
 size_t sys_read(int fd, char* buffer, size_t count) {
     return syscall3(0,fd, (size_t) buffer, count);
+}
+
+size_t sys_brk(size_t brk) {
+    size_t brk_val = syscall1(12,(size_t) brk);
+    return (size_t) brk_val;
+}
+
+
+int sys_open(const char* pathname, int flags, int mode) {
+	return (int) syscall3(2, pathname, flags, mode);
 }

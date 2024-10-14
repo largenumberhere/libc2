@@ -1,4 +1,4 @@
-_all_examples:	_examples_hello_world _examples_integer_value _length_of_a_string _split_substrings _printf_string _args _print_contents_of_file
+_all_examples:	_examples_hello_world _examples_integer_value _length_of_a_string _split_substrings _printf_string _args _print_contents_of_file _brk_test _smiley
 
 _split_substrings:
 	$(MAKE) -C ./examples/split_substrings
@@ -29,3 +29,9 @@ _args:
 	
 _print_contents_of_file:
 	$(MAKE) -C ./examples/print_contents_of_file
+
+_brk_test:
+	$(MAKE) -C ./examples/brk_test
+
+_smiley: 
+	$(MAKE) -C ./examples/smiley
