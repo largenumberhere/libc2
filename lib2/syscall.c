@@ -36,10 +36,10 @@ static size_t syscall2(size_t id, size_t reg1, size_t reg2) {
 
 static size_t syscall3(size_t syscall_number, size_t arg1, size_t arg2, size_t arg3) {
 	// move to the correct registers
-	register size_t rax asm("rax") = syscall_number;
-	register size_t rdi asm("rdi") = arg1;
-	register size_t rsi asm("rsi") = arg2;
-	register size_t rdx asm("rdx") = arg3;
+	volatile register size_t rax asm("rax") = syscall_number;
+	volatile register size_t rdi asm("rdi") = arg1;
+	volatile register size_t rsi asm("rsi") = arg2;
+	volatile register size_t rdx asm("rdx") = arg3;
 
 	// make a syscall, outputting to rax, taking in implicit arguments rax, rdi, rsi and rdx
 	asm volatile(
@@ -54,15 +54,13 @@ static size_t syscall3(size_t syscall_number, size_t arg1, size_t arg2, size_t a
 
 
 static size_t syscall1(size_t id/*rdi */, size_t reg1/*rsi */) {
-	register size_t rax asm("rax") = id;
-	register size_t rdi asm("rdi") = reg1;
+	volatile register size_t rax asm("rax") = id;
+	volatile register size_t rdi asm("rdi") = reg1;
 
 	asm("syscall"
 		: "+r" (rax)
 		: "r" (rax), "r" (rdi)
 	); 
-	
-	
 
 	// rax = rdi
 	// asm("movq %rdi, %rax");
@@ -80,6 +78,7 @@ size_t sys_write(int fd, const void* string, size_t len) {
 
 void sys_exit(int status) {
 	syscall1(60, status);
+	
     return;
 }
 

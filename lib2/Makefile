@@ -1,5 +1,13 @@
+COPT = -nostdlib -g -O3
+NOPT = 
+
 _main:
-	nasm -f elf64 sys.asm -o sys.a
-	clang -c ./syscall.c -o syscall.o
-	clang -Wnoincompatible-library-redeclaration -c -nostdlib libc2.c -o libc2.o -Lsyscall.h -g
-	ar cr libc2.a libc2.o syscall.o 
+	nasm -f elf64 sys.asm -o build/sys.o $(NOPT)
+	clang -c ./stdio.c -o build/stdio.o $(COPT)
+	clang -c ./stdlib.c -o build/stdlib.o $(COPT)
+	clang -c ./string.c -o build/string.o $(COPT)
+	clang -c ./syscall.c -o build/syscall.o $(COPT)
+	
+	clang -Wnoincompatible-library-redeclaration -c -nostdlib libc2.c -o build/libc2.o -L./*.h -g $(COPT)
+	rm -f libc2.a
+	ar cr libc2.a build/*.o
