@@ -13,11 +13,11 @@
 
 
 static size_t syscall2(size_t id, size_t reg1, size_t reg2) {
-	register size_t rax asm("rax") = id;
-	register size_t rdi asm("rdi") = reg1;
-	register size_t rsi asm("rsi") = reg2;
+	size_t rax asm("rax") = id;
+	size_t rdi asm("rdi") = reg1;
+	size_t rsi asm("rsi") = reg2;
 
-	asm(
+	asm volatile(
 		"syscall"
 		: "+r" (rax)
 		: "r" (rax), "r" (rdi), "r" (rsi)
@@ -36,10 +36,10 @@ static size_t syscall2(size_t id, size_t reg1, size_t reg2) {
 
 static size_t syscall3(size_t syscall_number, size_t arg1, size_t arg2, size_t arg3) {
 	// move to the correct registers
-	volatile register size_t rax asm("rax") = syscall_number;
-	volatile register size_t rdi asm("rdi") = arg1;
-	volatile register size_t rsi asm("rsi") = arg2;
-	volatile register size_t rdx asm("rdx") = arg3;
+	register size_t rax asm("rax") = syscall_number;
+	register size_t rdi asm("rdi") = arg1;
+	register size_t rsi asm("rsi") = arg2;
+	register size_t rdx asm("rdx") = arg3;
 
 	// make a syscall, outputting to rax, taking in implicit arguments rax, rdi, rsi and rdx
 	asm volatile(
@@ -54,18 +54,13 @@ static size_t syscall3(size_t syscall_number, size_t arg1, size_t arg2, size_t a
 
 
 static size_t syscall1(size_t id/*rdi */, size_t reg1/*rsi */) {
-	volatile register size_t rax asm("rax") = id;
-	volatile register size_t rdi asm("rdi") = reg1;
+	register size_t rax asm("rax") = id;
+	register size_t rdi asm("rdi") = reg1;
 
-	asm("syscall"
+	asm volatile("syscall"
 		: "+r" (rax)
 		: "r" (rax), "r" (rdi)
 	); 
-
-	// rax = rdi
-	// asm("movq %rdi, %rax");
-	// asm("movq %rsi, %rdi");
-	// asm("syscall");
 
 	return rax;
 }

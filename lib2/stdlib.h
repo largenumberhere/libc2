@@ -7,6 +7,7 @@ void free(void* ptr);
 void *calloc(unsigned long long nmemb, unsigned long long size);
 void* malloc(unsigned long long size) ;
 
+void exit(int status);
 
 
 #endif

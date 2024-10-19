@@ -64,9 +64,9 @@ void* sbrk(void* increment){
 
 
 
-static int exit_code = 0;
+int exit_code = 0;
 void __deinit(){
-	flush_putc();
+	flush_stdout();
 	sys_exit(exit_code);
 }
 
@@ -133,8 +133,6 @@ void __c_entry(int argc, char* first_arg) {
 
 //extern size_t sys_read(int fd, char* buffer, size_t count);
 
-
-void exit(int status) {
-	exit_code = status;
-	__deinit();
+void perror(const char* str) {
+	sys_write(1, str, strlen(str));
 }

@@ -1,13 +1,21 @@
 #include "stdio.h"
+#include "syscall.h"
+#include "stdlib.h"
+#include "string.h"
 #include <stdarg.h>
 #define ssize_t signed long long
 
-static char file_buffers[128][32] = {0};
-static size_t file_buffers_pos[32] = {0};
-static size_t file_buffers_len[32] = {0};
-static int eofs[32] = {0};
+// static char file_buffers[128][32] = {0};
+// static size_t file_buffers_pos[32] = {0};
+// static size_t file_buffers_len[32] = {0};
+// static int eofs[32] = {0};
 
-extern void write_i64(size_t val, char* out);
+
+#define UNIMPLEMENTED() \
+	printf("Unimplemented condition. %s:%i\n", __FILE__, __LINE__);\
+	exit(1);
+
+// extern void write_i64(size_t val, char* out);
 
 static void itoa(size_t val, int* len_out, char*buff_out) {
 	// 32 is more than big enough because the max a size_t can hold is 20 digits long
@@ -37,121 +45,93 @@ static void itoa(size_t val, int* len_out, char*buff_out) {
 
 }
 
-// static void itoa(size_t val, int* len_out, char* buff_out) {
-// 	if(val == 0){
-// 		*buff_out = '0';
-// 		*len_out = 1;
-// 		return;
-// 	}
 
-// 	// perform primitive conversion
-// 	write_i64(val, buff_out);
-// 	*len_out = 22;
 
-// 	char* ptr = NULL;
+#define assert(condition)	\
+	do {\
+		int __assert_val = condition;\
+		if (__assert_val != 1) {	\
+			printf("Assert failed at %s:%i. Result was %i\n", __FILE__, __LINE__, __assert_val);\
+			exit(1);\
+		}\
+	} while(0);
+
+// read file functions
+size_t fread(void* ptr, size_t size, size_t nmemb, FILE* stream) {
+	size_t i = 0;
 	
-// 	// stip away leading zeros
-// 	int leading = 0;
-// 	for(int i =1; i < *len_out; i++){
-// 		if (buff_out[i] =='0') {
-// 			leading+=1;
-// 		}
-// 		else{
-// 			break;
-// 		}
-// 	}
-
-// 	char tmp[32] = {0};
-// 	if (buff_out[0]=='+') {
-// 		for (int i = 0; i < 32; i++) {
-// 			tmp[i] = buff_out[i+leading+1];
-// 		}
-		
-// 	} else if (buff_out[0]=='-') {
-// 		for (int i = 0; i < 32; i++) {
-// 			tmp[i] = buff_out[i+leading];
-// 			tmp[0] = buff_out[0];
-// 		}
-// 	}
-
-// 	memcpy(buff_out, tmp, 22);
-
-// 	int len = strlen(buff_out);
-// 	*len_out = len;
-// }
+	for (; i < size*nmemb; i++) {
+		char f = fgetc(stream);
+		if ((char)i == -1) {
+			break;
+		}
+		((char*)ptr)[i] = f;
+	}
+	
+	return i;
+}
 
 int fgetc(FILE* stream) {
 	int fd = stream->fd;
-	
-	if (file_buffers_pos[fd] >= file_buffers_len[fd]) {
-	
-		if (eofs[fd]) {
+
+
+	// fill up the buffer if at the end of it
+	if (stream->buffer_cur >= stream->buffer_len) {
+		if (stream->eof) {
 			return (char) -1;
 		}
 
-		file_buffers_len[fd] = sys_read(fd, file_buffers[fd], 127);
-		eofs[fd] = file_buffers_len[fd] < 127;
-		file_buffers_pos[fd] = 0;
+		stream->buffer_len = sys_read(fd, stream->buffer, 127);
+		stream->eof = stream->buffer_len < 127;
+		stream->buffer_cur = 0;
 	}
 
-	return file_buffers[fd][file_buffers_pos[fd]++];
+	// return next character
+	return stream->buffer[stream->buffer_cur++];
 
-	// int fd = stream->fd;
-	// if (file_buffers_pos[fd] == 128) {
-	// 	if (eof[fd] == true) {
-	// 		return (char)-1;
-	// 	}
-	// 	int count = sys_read(fd, file_buffers[fd], 128);
-	// 	if (count < 128) {
-	// 		eof[fd] = true;
-	// 	}
-	// } 
-	
-
-	// return (char) file_buffers[fd][file_buffers_pos[fd]];
-
-	
-	// const char buffer[2] = {0};
-	// size_t count = sys_read(stream->fd, buffer, 1);
-	// //printf("%i", count);
-	// if (count == 0) {
-	// 	return (char)-1;
-	// }
-
-	// return (char) buffer[0];
 }
-
 
 int fclose(FILE* stream) {
 	int fd = stream->fd;
-
-	memset(file_buffers[fd],0,128);
-	file_buffers_len[fd] = 0;
-	file_buffers_pos[fd] = 0;
+	memset(stream, 0, sizeof(FILE));
 
 	sys_close(fd);
 
 	return 0;	// success
 }
 
-
-static FILE_PTR* file_ptrs[32] = {0};
-static FILE_PTR files[32] = {0};
-static int files_len = 0;
-
-
-
 #define mode_t int
+
+FILE* file_allocate() {
+	FILE* f;
+	f = (FILE*) calloc(1, sizeof(FILE));
+	assert(f!=NULL);
+
+	return f;
+}
+
+void file_destroy(FILE* f) {
+	memset(f, 0, sizeof(FILE));
+	f->fd = -2;
+}
+
+
 FILE* fopen(const char* pathname, const char*mode) {
 	#define O_CREAT 0100
 	#define O_WRONLY 01
 
-	if(files_len >=32) {
-		return NULL;
-	}
+	// if(files_len >=32) {
+	// 	return NULL;
+	// }
 
-	file_ptrs[files_len] = & files[files_len];
-	FILE_PTR* f = file_ptrs[files_len++];
+	// file_ptrs[files_len] = & files[files_len];
+	// FILE_PTR* f = file_ptrs[files_len++];
+	// return f;
+
+	FILE_PTR* f = file_allocate();
+
+	// file_ptrs[files_len] = & files[files_len];
+	// FILE_PTR* f = file_ptrs[files_len++];
 
 	if (mode[0] == 'r' && mode[1] =='\0') {
 		mode_t modet = 0700;	// octal number
@@ -170,6 +150,7 @@ FILE* fopen(const char* pathname, const char*mode) {
 	return f;
 }
 
+// write file functions
 int fputc(int c, FILE* stream) {
 	sys_write(stream->fd, &c, 1);
 	return (unsigned char) c;
@@ -193,46 +174,32 @@ int fseek(FILE* stream, long offset, int whence) {
 
 }
 
-size_t fread(void* ptr, size_t size, size_t nmemb, FILE* stream) {
-	size_t i = 0;
-	
-	for (; i < size*nmemb; i++) {
-		char f = fgetc(stream);
-		if ((char)i == -1) {
-			break;
-		}
-		((char*)ptr)[i] = f;
-	}
-	
-	return i;
-}
 
 
-static char putc_buffer[129] = {0}; 
-static size_t putc_pos = 0;
+static char stdout_buffer[129] = {0}; 
+static size_t stdout_buffcur = 0;
 
 void putc(char c, int stream) {
 	if (stream == 1) {
-		putc_buffer[putc_pos++] = c;
+		stdout_buffer[stdout_buffcur++] = c;
 		
-		if (putc_pos >= 128 || c=='\n') {
-			sys_write(1, putc_buffer, putc_pos);
-			putc_pos = 0;		
+		if (stdout_buffcur >= 128 || c=='\n') {
+			sys_write(1, stdout_buffer, stdout_buffcur);
+			stdout_buffcur = 0;		
 		} 
 		
 		
 	}
-
 	else {
 		printf("unsupported stream used '%i'\n", stream);
+		UNIMPLEMENTED();
 	}
 }
 
-void flush_putc() {
-	if (putc_pos > 0) {
-	
-		sys_write(1, putc_buffer, putc_pos);
-		putc_pos = 0;		
+void flush_stdout() {
+	if (stdout_buffcur > 0) {
+		sys_write(1, stdout_buffer, stdout_buffcur);
+		stdout_buffcur = 0;		
 	}
 }
 

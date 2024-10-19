@@ -7,6 +7,10 @@
 typedef struct
 {
 	int fd;
+	char buffer[128];
+	size_t buffer_cur;
+	size_t buffer_len;
+	int eof;
 } FILE_PTR;
 
 
@@ -23,6 +27,6 @@ void putc(char c, int stream);
 void puts(const char* buffer);
 int printf(char* format, ...);
 
-void flush_putc();
+void flush_stdout();
 
 #endif

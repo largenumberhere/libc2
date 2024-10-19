@@ -1,4 +1,5 @@
 #include "stdlib.h"
+#define PRIMITIVE_MALLOC 1
 
 int abs(int j) {
 	if (j < 0) {
@@ -11,6 +12,8 @@ int abs(int j) {
 #define ssize_t signed long long
 #define size_t unsigned long long
 
+#ifdef PRIMITIVE_MALLOC 
+// a simple bump allocator
 static ssize_t pointers = 0;
 static void* alloc_start = NULL;
 static size_t alloc_size = 0;
@@ -66,4 +69,13 @@ void free(void* ptr) {
 
 	return;
 
+}
+
+#endif
+
+
+extern int exit_code;
+void exit(int status) {
+	exit_code = status;
+	__deinit();
 }
