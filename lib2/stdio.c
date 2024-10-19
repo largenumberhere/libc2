@@ -3,6 +3,7 @@
 #include "stdlib.h"
 #include "string.h"
 #include <stdarg.h>
+#include "malloc.h"
 #define ssize_t signed long long
 
 // static char file_buffers[128][32] = {0};
@@ -19,8 +20,16 @@
 
 static void itoa(size_t val, int* len_out, char*buff_out) {
 	// 32 is more than big enough because the max a size_t can hold is 20 digits long
-	char tmp[32] = {0};
 	
+
+	if (val ==0) {
+		buff_out[0] = '0';
+		*len_out = 1;
+		return;
+	}
+	
+	char tmp[32] = {0};
+
 	size_t string_pos = 0;
 
 	size_t c = 0;
