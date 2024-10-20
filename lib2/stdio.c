@@ -1,20 +1,19 @@
 #include "stdio.h"
 #include "syscall.h"
 #include "stdlib.h"
+#include "libc2.h"
 #include "string.h"
 #include <stdarg.h>
 #include "malloc.h"
+#include "debug_util.h"
 #define ssize_t signed long long
+
 
 // static char file_buffers[128][32] = {0};
 // static size_t file_buffers_pos[32] = {0};
 // static size_t file_buffers_len[32] = {0};
 // static int eofs[32] = {0};
 
-
-#define UNIMPLEMENTED() \
-	printf("Unimplemented condition. %s:%i\n", __FILE__, __LINE__);\
-	exit(1);
 
 // extern void write_i64(size_t val, char* out);
 
@@ -237,6 +236,13 @@ static void write_int(int val) {
 	//sys_write(1, "write_int", 10);
 }
 
+void perror_int(int val) {
+	int len;
+	char buff[32] = {0};
+	itoa((size_t)val, &len, &buff);
+	perror(buff);
+}
+
 static int find_delim(char* str, char delim, int offset) {
 	int i = offset;
 
@@ -253,86 +259,78 @@ static int find_delim(char* str, char delim, int offset) {
 	return i;
 }
 
+//int fscanf(FILE *stream, const char *format, ...) {
+int __isoc99_fscanf(FILE* stream, const char* format, ...) {
+	int matches = 0;
 
-
-int printf(char* format, ...){
 	va_list ap;
-
 	va_start(ap, format);
-	//int a = va_arg(ap, int);
-	
 
-	char* fmt = format;
+	size_t len = strlen(format);
 
-	size_t len = strlen(fmt);
-	int arg_pos = 0;
-
-	int ignore_count = 0;
-	for(int i = 0; i < len; i++){
-		if (ignore_count >0) {
-			ignore_count--;
-			continue;
-		}
-
-		int pc_pos = find_delim(fmt, '%', i);
-
-
-		if (fmt[i] == '%') {
-			if(i+1<len) {
-		 		if (fmt[i+1]=='i' || fmt[i+1]=='d'){
-					int a = va_arg(ap, int);
-					write_int(a);
-					ignore_count+=2;
-				} else if (fmt[i+1] == 's') {
-					char* s = va_arg(ap, char*);
-					puts(s);
-					//sys_write(1, (char*)s, strlen(s));				
-					i+=1;
-				} else if(fmt[i+1]=='c') {
-					char c = va_arg(ap, char);
-					putc(c, 1);
-					i+=1;
-					//ignore_count+=3;	
-				} else {
-					putc(fmt[i], 1);
-				}
-
-				
+	for (size_t i = 0; i < len; i++) {
+		if(strcmp(format+i, "%s")==0) {
+			char* out_str = va_arg(ap, char*);
+			size_t out_cur = 0;
+			int c = fgetc(stream);
+			while(c!='\n' && c!=' ' && c!=-1) {
+				out_str[out_cur++] = (char)c;
+				c = fgetc(stream);
 			}
-		}
-		else {
-			// int buffer_pos = 0;
-			// char buffer[65] = {0};
-			// int i = 0;
-			// for (; i < 64; i++) {
-			// 	if(fmt[i] !='%' && fmt[i] != '\0') {
-			// 		buffer[buffer_pos++] = fmt[i]; 
-			// 	}
-			// 	else {
-			// 		break;
-			// 	}
-			// }
-
-			// sys_write(1, buffer, i);
-
-			// ignore_count+=i-1;
-
-			// int left = 0;
-			// for(; true; left++) {
-			// 	if(fmt[left]!='%' || fmt[left]!='\0') {
-			// 		break;
-			// 	}
-			// }
-			// sys_write(1, fmt+i, left);
-			// ignore_count+=left;
-			putc(fmt[i], 1);
+			out_str[out_cur++] = '\0';
+			if (out_cur>1) {
+				matches+=1;	
+			}
+		} else if(strcmp(format+1, "%")==0) {
+			UNIMPLEMENTED();
 		}
 	}
-	
 
 	va_end(ap);
 
-	//sys_write(1, fmt, len);
+	// printf("scanned\n");
+
+	return matches;
+
+}
+
+int printf(char* format, ...){
+	
+	va_list pva;
+
+	va_start(pva, format);
+	
+	size_t len = strlen(format);
+	int arg_pos = 0;
+
+	int ignore_count = 0;
+	int i = 0;
+	for(; i < len; i++){
+		if (strcmp(format, "%i")==0 || strcmp(format, "%d") == 0) {
+			int a = va_arg(pva, int);
+			write_int(a);
+			i+=1;
+		} else if (strcmp(format, "%s") == 0) {
+			char* s = va_arg(pva, char*);
+			puts(s);
+			i+=1;
+		} else if (strcmp(format, "%c") == 0) {
+			char c = va_arg(pva, char);
+			putc(c, 1);
+			i+=1;
+		} else if (strcmp(format, "%%") == 0) {
+			putc('%', 1);
+			i+=1;
+		} else if (strcmp(format, "%")==0) {
+			perror(format);
+			UNIMPLEMENTED();
+		} else {
+			putc(format[i], 1);
+		}
+	}
+	
+	va_end(pva);
+
 	return 0;
 }
 

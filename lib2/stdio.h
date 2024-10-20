@@ -16,6 +16,7 @@ typedef struct
 
 #define FILE FILE_PTR
 
+int fscanf(FILE *stream, const char *format, ...);
 int fgetc(FILE* stream);
 int fputc(int c, FILE* stream);
 FILE* fopen(const char* pathname, const char*mode);
@@ -27,6 +28,9 @@ void putc(char c, int stream);
 void puts(const char* buffer);
 int printf(char* format, ...);
 
+// unoffical
 void flush_stdout();
+void perror_int(int val);
+
 
 #endif

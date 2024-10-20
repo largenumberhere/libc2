@@ -1,4 +1,4 @@
-COPT = -nostdlib -g -O0
+COPT = -nostdlib -g -O0 -L./*.h
 NOPT = 
 
 _main:

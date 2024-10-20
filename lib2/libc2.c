@@ -100,7 +100,16 @@ void __c_entry(int argc, char* first_arg) {
 
 
 
+int tolower(int c) {
+	unsigned char c2 = (unsigned char)c;
+	
+	if (c2 <'A' || c2 > 'Z') {
+		return c2;
+	} else {
+		return c2 + 32;
+	}
 
+}
 
 
 // inline void sys_exit(int status){
@@ -134,5 +143,5 @@ void __c_entry(int argc, char* first_arg) {
 //extern size_t sys_read(int fd, char* buffer, size_t count);
 
 void perror(const char* str) {
-	sys_write(1, str, strlen(str));
+	sys_write(2, str, strlen(str));
 }
