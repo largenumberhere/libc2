@@ -295,7 +295,6 @@ int __isoc99_fscanf(FILE* stream, const char* format, ...) {
 }
 
 int printf(char* format, ...){
-	
 	va_list pva;
 
 	va_start(pva, format);
@@ -306,22 +305,25 @@ int printf(char* format, ...){
 	int ignore_count = 0;
 	int i = 0;
 	for(; i < len; i++){
-		if (strcmp(format, "%i")==0 || strcmp(format, "%d") == 0) {
+		if (strncmp(format+i, "%i", 2)==0 || strncmp(format+i, "%d", 2) == 0) {
 			int a = va_arg(pva, int);
 			write_int(a);
+			perror("wrote int\n");
+			// perror_int(a);
+			// UNIMPLEMENTED();
 			i+=1;
-		} else if (strcmp(format, "%s") == 0) {
+		} else if (strncmp(format+i, "%s", 2) == 0) {
 			char* s = va_arg(pva, char*);
 			puts(s);
 			i+=1;
-		} else if (strcmp(format, "%c") == 0) {
+		} else if (strncmp(format+i, "%c", 2) == 0) {
 			char c = va_arg(pva, char);
 			putc(c, 1);
 			i+=1;
-		} else if (strcmp(format, "%%") == 0) {
+		} else if (strncmp(format+i, "%%",2) == 0) {
 			putc('%', 1);
 			i+=1;
-		} else if (strcmp(format, "%")==0) {
+		} else if (strncmp(format+i, "%",2)==0) {
 			perror(format);
 			UNIMPLEMENTED();
 		} else {
