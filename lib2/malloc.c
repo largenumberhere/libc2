@@ -22,9 +22,9 @@ The design:
 #define ssize_t signed long long
 #define size_t unsigned long long
 
-#define PRIMITIVE_MALLOC 1
+#define PRIMITIVE_MALLOC 0
 
-#if PRIMITIVE_MALLOC == 0
+#if PRIMITIVE_MALLOC == 1
 // static void* alloc_meta_start = NULL;
 // static size_t alloc_meta_capacity = 0;
 // static size_t alloc_meta_cur = 0;
@@ -72,6 +72,16 @@ static void* map_alloc(void* hint, size_t length) {
     return allocation;
 }
 
+static void unmap_alloc(void* start, size_t length) {
+    printf("start:%x\n", start);
+    if(sys_munmap(start, length)!=0) {
+        perror("munmap failed\n");
+        sys_exit(4);
+    }
+
+    return;
+}
+
 // static void try_init_meta() {
 //     if (alloc_meta_start == NULL) {
 //         alloc_meta_start = map_alloc(NULL, sizeof(AlocMeta)*128);
@@ -101,7 +111,6 @@ ssize_t nearest_page(ssize_t number) {
 		i+=4096;
 	}
 
-	//printf("outputting %i\n", i);
 
 	return i;
 }
@@ -111,111 +120,6 @@ static size_t round_up (size_t size) {
     return (size_t)nearest_page((ssize_t)min);
 }
 
-
-
-// #define ALLOC0_SIZE 4096
-
-// static void* first_allocation(size_t size) {
-//         printf("null alloc0\n");
-//         size_t size_rounded = round_up(size);
-
-//         alloc0 = map_alloc(NULL, size_rounded);
-//         memset(alloc0, 0, size_rounded);
-
-//         AlocMeta* m = (AlocMeta*) alloc0;
-//         m->len = size;
-//         m->start = alloc0;
-//         m->next = NULL;
-//         m->freed = false;
-       
-//         capacity = size_rounded;
-//         len = size;
-
-//         void* ptr = m->start;
-//         return ptr;
-// }
-
-// static void* seccond_allocation(size_t size, AlocMeta* pam0) {
-//     printf("seccond allocation\n");
-//     // size_t pam0_next =  pam0->start+ pam0->len + sizeof(AlocMeta);
-//     // void* end = alloc0 + capacity;
-//     // size_t room = (size_t) (end - pam0_next);
-    
-    
-//     // printf("room:%i\n", room);
-//     if (!has_room(size)) {
-//         UNIMPLEMENTED();
-//     } else {
-//         // create metadata and hand over pointer
-//         AlocMeta* new = (AlocMeta*) pam0 + pam0->len;
-//         new->len = size;
-//         new->next = NULL;
-//         new->start = new+(sizeof(AlocMeta));
-//         new->freed = false;
-
-//         pam0->next = new;
-//         len = (new->start + new->len) - alloc0;
-
-//         return (void*) new->start;
-//     }
-// }
-
-// bool has_room(size_t size) {
-//     size_t room = len + sizeof(AlocMeta)+ size;
-//     printf("room: %i for %i\n", room, size);
-//     return room < capacity;
-// }
-
-// static void* allocate(size_t size) {
-//     if (alloc0==NULL) {
-//         return first_allocation(size);
-//     } else {
-//         AlocMeta* pam0 = (AlocMeta*)alloc0;
-//         if (pam0->next==NULL) {
-//             return seccond_allocation(size, pam0);
-//         } else {
-//             UNIMPLEMENTED();
-//             // find last item
-//             AlocMeta* pam = (AlocMeta*)pam0->next;
-//             AlocMeta* pam_prev = (AlocMeta*) pam0;
-//             while(pam->next!=NULL) {
-//                 pam_prev = pam;
-//                 pam = pam->next;
-//             }
-
-//             // get space after item
-//             // size_t pam_next = pam->start + pam->len;
-//             // void* end = alloc0+ capacity;
-//             // size_t room = (size_t) ((size_t)end - (size_t)pam_next);
-//             // printf("room:%i\n", room);
-            
-//             if (!has_room(size)) {
-//                 UNIMPLEMENTED();
-//                 // allocate more pages as needed
-//                 size_t increase = round_up(size);
-//                 map_alloc(alloc0+capacity, increase);
-//                 capacity = capacity + increase;
-//             }
-
-//                 UNIMPLEMENTED();
-//             //} else {
-//                 // create metadata and hand over pointer
-//                 AlocMeta* new = (AlocMeta*) pam + pam->len;
-//                 new->len = size;
-//                 new->next = NULL;
-//                 new->start = new+(sizeof(AlocMeta));
-//                 new->freed = false;
-                
-//                 pam_prev->next = new;
-
-//                 return (void*) new->start;
-//             //}
-//         }
-
-
-//         UNIMPLEMENTED();
-//     }
-// } 
 
 AlocMeta* init_meta(void* buffer, size_t len) {
     AlocMeta* a = (AlocMeta*) buffer;
@@ -230,21 +134,58 @@ AlocMeta* init_meta(void* buffer, size_t len) {
 
 
 
-size_t alloc_start = 0;
+void* alloc_start = NULL;
 size_t alloc_cap = 0;
 size_t alloc_len = 0;
 
+// returns null if cannot fit between other items
+void* try_fit(size_t size) {
+    if (alloc_start ==NULL) {
+        return NULL;
+    }
+
+    bool room = false;
+    AlocMeta* prev = NULL;
+    AlocMeta* current = alloc_start;
+    while(current->next_meta!=NULL) {
+        if(prev!=NULL) {
+            //check for room
+            if (prev->next_meta != prev->start + prev->len) {
+                room = true;
+                break;
+            } else {
+                // printf("no room\n");
+            }
+        } 
+
+        prev = current;
+        current = current->next_meta;
+    }
+
+    if (room) {
+        printf("room found\n");
+    } else {
+        printf("no room\n");
+    }
+
+    return NULL;
+}
+
 void* allocate(size_t size) {
+    try_fit(size);
+
     if (alloc_cap == 0) {
         // handle initialization and first allocation
         size_t min_page = round_up(size + sizeof(AlocMeta));
         void* start = map_alloc(NULL, min_page);
         alloc_start = (size_t) start;
+        // printf("alloc_start:%x\n", alloc_start);
         alloc_cap = min_page;
         
         AlocMeta* header = init_meta(start, size);
         alloc_len = (size_t) (size+sizeof(AlocMeta));
-        
+        printf("created head node at %x\n", header);
+
         return header->start;
     } else {
         // handle 2nd allocation
@@ -252,20 +193,21 @@ void* allocate(size_t size) {
         AlocMeta* header1;
         if (header0->next_meta == NULL) {
             // size_t rem = alloc_cap - size;
-            size_t max_addr = alloc_len + size + sizeof(AlocMeta);
-            printf("max_addr: %x\n", max_addr);
-            printf("alloc end: %x\n", alloc_start+alloc_cap);
+            size_t max_addr = (size_t)alloc_start + alloc_len + size + sizeof(AlocMeta);
+            // printf("max_addr: %x\n", max_addr);
+            // printf("alloc end: %x\n", alloc_start+alloc_cap);
             size_t alloc_end = alloc_start + alloc_cap;
             if (max_addr >= alloc_end) {
                 // need reallocation
                 UNIMPLEMENTED();
             } else {
-                printf("alloc_len: %i\n", alloc_len);
+                // printf("alloc_len: %i\n", alloc_len);
                 header1 = init_meta(alloc_start+alloc_len, size);
                 header0->next_meta = (size_t) header1;
                 alloc_len+=(size+sizeof(AlocMeta));
+                printf("%x -> %x\n", header0, header1);
 
-                printf("assigned\n");
+                // printf("assigned\n");
 
                 return header1->start;
             }
@@ -274,30 +216,47 @@ void* allocate(size_t size) {
             AlocMeta* prev = header0;
             AlocMeta* current = header0->next_meta;
             while(true) {
-                if (current->next_meta == NULL) {
+                if (current == NULL) {
                     break;
                 }
                 
                 prev = current;
-                current = prev->next_meta;
+                current = current->next_meta;
             }
-            printf("found next\n");
+            // printf("prev: %x", prev);
+            // printf("prev size: %x", prev->len);
+            // printf("found next\n");
 
-            size_t max_addr = alloc_len + size + sizeof(AlocMeta);
-            printf("max_addr: %x\n", max_addr);
-            printf("alloc end: %x\n", alloc_start+alloc_cap);
+            size_t max_addr = (size_t)alloc_start + alloc_len + size + sizeof(AlocMeta);
+            // printf("max_addr: %x\n", max_addr);
+            // printf("alloc end: %x\n", alloc_start+alloc_cap);
             size_t alloc_end = alloc_start + alloc_cap;
 
             if (max_addr >= alloc_end) {
-                UNIMPLEMENTED();
-            } else {
-                // printf("3rd alloc\n");
-                AlocMeta* meta_n = init_meta(alloc_start+alloc_len, size);
-                prev->next_meta = meta_n;
-                alloc_len+=(size+sizeof(AlocMeta));
+                // 3rd or more malloc requires more room
+                // calculate additional bytes required
+                size_t extra_bytes = size+ (alloc_cap-alloc_len);
+                // round  up bytes
+                size_t extra_bytes2 = round_up(extra_bytes);
+                // allocate bytes at end of current cap
+                map_alloc(alloc_start+alloc_cap, extra_bytes2);
+                // printf("allocated at %x", alloc_start+alloc_cap);
+                // update cap
+                // printf("Allocated extra %x\n", extra_bytes2);
+                // printf("old cap: %x\n", alloc_cap);
+                alloc_cap = alloc_cap + extra_bytes2;
+                // do allocation
+                // printf("new cap: %x\n", alloc_cap);
 
-                return meta_n->start;
+                // UNIMPLEMENTED();
             }
+            // printf("3rd alloc\n");
+            AlocMeta* meta_n = init_meta(alloc_start+alloc_len, size);
+            prev->next_meta = meta_n;
+                printf("%x -> %x\n", prev, meta_n);
+            alloc_len+=(size+sizeof(AlocMeta));
+
+            return meta_n->start;
         }
     }
 }
@@ -307,6 +266,9 @@ void* malloc(size_t size) {
     //printf("Allocating between %x and %x for size %x\n", alloc0, alloc0+len, size);
     void* a = allocate(size);
     printf("size '%x' allocated at %x\n",(int)size , (size_t)a);
+
+    memset(a, 0, size);
+
     return a;
 }
 void *calloc(size_t nmemb, size_t size) {
@@ -317,132 +279,132 @@ void *calloc(size_t nmemb, size_t size) {
     return a;
 }
 
-// void remove_freed() {
-//     // todo: remove the pointers to any linked list item marked as freed
-//     AlocMeta* pam0 = alloc0;
-//     if (pam0==NULL) {
-//         return;
-//     }
 
-//     // if (pam0->)
 
-// }
+// remove any items flagged as freed
+void purge_list() {
+    if(alloc_start!=NULL && ((AlocMeta*)alloc_start)->freed){
+        // todo: handle list head removal
+        //UNIMPLEMENTED();
+        unmap_alloc(alloc_start, alloc_cap);
+        alloc_start = NULL;
+        alloc_cap = 0;
+        alloc_len =0;
 
-void free(void* ptr) {
-    if(ptr==NULL) {
+        return;
+
+    } if(alloc_start==NULL) {
         return;
     }
-    printf("freeing %x", ptr);
+    
+    AlocMeta* one = alloc_start;
+
+    AlocMeta* current = one;
+    AlocMeta* prev = NULL;
+    while (current->next_meta!=NULL)
+    {
+        if(prev!=NULL) {
+            if(current->freed==true) {
+                // hide unused node    
+                AlocMeta* next = current->next_meta;
+                prev->next_meta = next;
+                
+                printf("node %x hidden. ", current);
+                printf("%x -> %x\n", prev, next);
+                return;
+            }
+        }
+
+        prev = current;
+        current = current->next_meta;
+    }
+
+    printf("no nodes hidden\n");
+
+    return;
+}
+
+
+void mark_freed(void* ptr) {
+    if(ptr==NULL) {
+        perror("Null pointer passed to free\n");
+        return;
+    }
+
+    // printf("freeing %x\n", ptr);
     AlocMeta* start = alloc_start;
+    AlocMeta* two;
+    AlocMeta* three;
+    if (start!=NULL) {
+        two = start->next_meta;
+    } else {
+        two = NULL;
+    }
+    if (two!=NULL) {
+        three == two->next_meta;
+    } else {
+        three = NULL;
+    }
+    
     if(start==NULL) {
         perror("Double free detected\n");
+        return;
     }
-    else if (start->next_meta==NULL) {
+
+    else if (two==NULL) {
         // it must be first
         if (start->start!=ptr) {
-            perror("invalid free performed\n");
+            perror("start->next is NULL. invalid free performed\n");
             return;
         }
 
         start->freed = true;
+        printf("freed start %x\n", ptr);
         return;
-    } else if (((AlocMeta*)start)->next_meta==NULL) {
-        AlocMeta* two = (AlocMeta*)start->next_meta;
-        // it must be 2nd
+    } else if (three==NULL) {
+        // it must be 2
         if (two->start != ptr) {
-            perror("invalid free performed\n");
+            perror("invalid free performed on two\n");
             return;
         }
 
         two->freed = true;
+        // printf("freed two %x\n", ptr);
         return;
     } else {
         // it must be third or more
-        AlocMeta* prev = start;
-        AlocMeta* current = (AlocMeta*)start->next_meta;       
-        while (current->next_meta!=NULL && current->start!=ptr) {
-            prev= current;
+        AlocMeta* prev = (AlocMeta*)start;
+        AlocMeta* current = (AlocMeta*)two;
+        while (current->next_meta!=NULL && current->start!=ptr)
+        {
+            // printf("visited node %x\n", current->start);
+            prev = current;
             current = current->next_meta;
         }
-        if (current->start!=ptr) {
-            perror("invalid free performed\n");
+        
+        if (current->start!=ptr ||  current->freed == true) {
+            perror("invalid free performed on 3rd or more\n");
+            printf("addr %x!=%x\n", ptr, current->start);
             return;
         }
 
+        // printf("freeing 3+ %x\n", current->start);
         current->freed = true; 
         return;
     }
 
 
     UNIMPLEMENTED();
-    // if (ptr == NULL) {
-    //     return;
-    // }
-
-    // // mark item0 as freed
-    // AlocMeta* pam0 = (AlocMeta*) alloc0;
-    // if (ptr == pam0->start) {
-    //     pam0->freed = true;
-    //     return;
-    // }
-
-    // // mark item 1 as freed
-    // AlocMeta* pam1 = pam0->next;
-    // if (ptr == pam1->start) {
-    //     pam1->freed = true;
-    //     //pam0->next = NULL;
-    // }
-
-    
-    // // traverse linked list until last item before ptr is found
-    // AlocMeta* pam = (AlocMeta*) pam1; 
-    // AlocMeta* pam_prev = (AlocMeta*) pam0;
-    // while(pam!=NULL && pam->start!=ptr) {
-    //     pam_prev = pam;
-    //     pam = pam->next;
-    // }
-    // if (pam==NULL) {
-    //     perror("Invalid free was performed\n");
-    //     return;
-    // }
-
-    // pam->freed = true;
-
-
-    // remove_freed();
-
-    // AlocMeta* pam0 = (AlocMeta*) alloc0;
-
-    // if (alloc0 == NULL) {    
-    //     // nothing allocated
-        
-    // }
-    // else if (alloc0==NULL && pam0->next==NULL) {
-    //     pam0->freed = true;
-    // }
-
-
-    // else {
-    //     AlocMeta* pam0 = (AlocMeta*) alloc0;
-
-    //     // find the last 2 items
-    //     AlocMeta* pam = pam0->next;
-    //     AlocMeta* pam_prev = pam0;
-    //     for(size_t i = 0; true; i++) {
-    //         if(pam->next == NULL) {
-    //             break;
-    //         }
-    //         else {
-    //             pam_prev = pam;
-    //             pam = pam->next;
-    //         }
-    //     }
-
-
-    // }
 
     return;
 }
+
+void free(void* ptr) {
+    mark_freed(ptr);
+    printf("freed %x\n", (size_t) ptr);
+    purge_list();
+}
+
 
 #else
 

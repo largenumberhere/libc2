@@ -143,11 +143,17 @@ int fgetc(FILE* stream) {
 
 }
 
+void file_deallocate(FILE* f) {
+	memset(f, 0, sizeof(FILE));
+	free((void*)f);
+}
+
 int fclose(FILE* stream) {
 	int fd = stream->fd;
-	memset(stream, 0, sizeof(FILE));
 
 	sys_close(fd);
+	file_deallocate(stream);
+
 
 	return 0;	// success
 }
@@ -161,6 +167,7 @@ FILE* file_allocate() {
 
 	return f;
 }
+
 
 void file_destroy(FILE* f) {
 	memset(f, 0, sizeof(FILE));

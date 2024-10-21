@@ -115,3 +115,19 @@ void *sys_mmap(void *addr, unsigned long long length, int prot, int flags, int f
 	void* ret = (void*) syscall6(9, (size_t) addr, (size_t)length, (size_t)prot, (size_t)flags, (size_t)fd, (size_t) offset);
 	return ret; 
 }
+
+int sys_munmap(void* addr, size_t length) {
+	// int ret = (int) syscall2(11, (unsigned long)addr, (size_t)length);
+	// return ret;
+	volatile register size_t rax asm("rax") = (size_t) 11;
+  	volatile register size_t rdi asm("rdi") = (unsigned long) addr;
+  	volatile register size_t rsi asm("rsi") = (size_t) length;
+
+	asm volatile("syscall"
+	:"+r" (rax)
+	:"r" (rax), "r" (rdi), "r" (rsi)
+	: "memory"
+	);
+
+	return (int) rax;
+}
