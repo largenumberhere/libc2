@@ -41,8 +41,8 @@ static void itoa(size_t val, int* len_out, char*buff_out) {
 		m = (char) '0' + c;
 		tmp[string_pos++] = m;
 	}
-	
-	// reverse it
+
+
 	int len = 0;
 	for (ssize_t i = string_pos; i >=0; i--) {
 		if (tmp[i] == '\0') {continue;}
@@ -53,7 +53,51 @@ static void itoa(size_t val, int* len_out, char*buff_out) {
 
 }
 
+static void itoa_hex(size_t val, int* len_out, char*buff_out) {
+	// 32 is more than big enough because the max a size_t can hold is 20 digits long
+	
+	if (val ==0) {
+		buff_out[0] = '0';
+		*len_out = 1;
+		return;
+	}
+	
+	char tmp[32] = {0};
 
+	size_t string_pos = 0;
+
+	size_t c = 0;
+	char m = '\0';
+
+	while (val > 0)
+	{
+		c = val % 16;
+		val = val / 16;
+		m = (char) '0' + c;
+		
+		// adjust character for a to f
+		if (m > '9') {
+			m+=39;
+		}
+
+		tmp[string_pos++] = m;
+	}
+	
+	size_t i = string_pos;
+	while(tmp[i]=='\0') {
+		i--;
+	}
+
+	// reverse it
+	int len = 0;
+	for (ssize_t i = (ssize_t)string_pos; i >=0; i--) {
+		//if (tmp[i] == '\0') {continue;}
+		buff_out[len++] = tmp[i];
+	}
+	
+	*len_out = len;
+
+}
 
 #define assert(condition)	\
 	do {\
@@ -225,6 +269,13 @@ static void puts_l(const char* buffer, size_t len) {
 }
 
 
+static void write_hex(size_t val) {
+	int len;
+	char buff[32] = {0};
+	itoa_hex(val, &len, buff);
+	puts_l("0x",2);
+	puts_l(buff, len);
+}
 
 static void write_int(int val) {
 	int len;
@@ -302,32 +353,36 @@ int printf(char* format, ...){
 	size_t len = strlen(format);
 	int arg_pos = 0;
 
-	int ignore_count = 0;
+	// int ignore_count = 0;
 	int i = 0;
-	for(; i < len; i++){
+	for(; i < len; ){
 		if (strncmp(format+i, "%i", 2)==0 || strncmp(format+i, "%d", 2) == 0) {
 			int a = va_arg(pva, int);
 			write_int(a);
-			perror("wrote int\n");
-			// perror_int(a);
-			// UNIMPLEMENTED();
-			i+=1;
+			i+=2;
 		} else if (strncmp(format+i, "%s", 2) == 0) {
 			char* s = va_arg(pva, char*);
 			puts(s);
-			i+=1;
+			i+=2;
 		} else if (strncmp(format+i, "%c", 2) == 0) {
 			char c = va_arg(pva, char);
 			putc(c, 1);
-			i+=1;
+			i+=2;
 		} else if (strncmp(format+i, "%%",2) == 0) {
 			putc('%', 1);
-			i+=1;
-		} else if (strncmp(format+i, "%",2)==0) {
+			i+=2;
+		}
+		else if(strncmp(format+i, "%x",2)==0) {
+			size_t h = va_arg(pva, size_t);
+			write_hex((size_t)h);
+			i+=2;
+		} else if (strncmp(format+i, "%",1)==0) {
 			perror(format);
 			UNIMPLEMENTED();
+			
 		} else {
 			putc(format[i], 1);
+			i+=1;
 		}
 	}
 	
