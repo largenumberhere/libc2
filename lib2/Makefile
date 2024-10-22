@@ -4,7 +4,6 @@ NOPT =
 _main:
 	rm -rf .ls/build/*
 
-	nasm -f elf64 sys.asm -o build/sys.o $(NOPT)
 	clang -c ./malloc.c -o build/malloc.o $(COPT)
 	clang -c ./stdio.c -o build/stdio.o $(COPT)
 	clang -c ./stdlib.c -o build/stdlib.o $(COPT)

@@ -30,6 +30,7 @@ extern int main(int argc, char* argv[]);
 
 
 
+
 static void handle_format(char* string, size_t len, size_t offset){
 
 }
@@ -98,6 +99,11 @@ void __c_entry(int argc, char* first_arg) {
 	__deinit();
 }
 
+ asm (".globl _start\n\t"
+ 	"_start:\n\t"
+ 	"pop %rdi\n\t"
+	"pop %rsi\n\t"
+	"call __c_entry\n\t");
 
 
 int tolower(int c) {

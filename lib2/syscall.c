@@ -131,3 +131,7 @@ int sys_munmap(void* addr, size_t length) {
 
 	return (int) rax;
 }
+
+int sys_close(int fd) {
+	return syscall1(3, fd);
+}
