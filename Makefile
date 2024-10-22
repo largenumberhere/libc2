@@ -1,38 +1,27 @@
-_all_examples:	_examples_hello_world _examples_integer_value _length_of_a_string _split_substrings _printf_string _args _print_contents_of_file _brk_test _smiley _dog_trie
-
-_split_substrings: _lib2
-	$(MAKE) -C ./examples/split_substrings
-	# ./examples/split_substrings/main
-
-_examples_hello_world:	_lib2
+_static_examples: _lib2
+	$(MAKE) -C ./examples/split_substrings shared
 	$(MAKE) -C ./examples/hello_world
-	# ./examples/hello_world/main
-
-_examples_integer_value:	_lib2
 	$(MAKE) -C ./examples/integer_value
-	# ./examples/integer_value/main
-
-_printf_string: _lib2
 	$(MAKE) -C ./examples/printf_string
-	# ./examples/printf_string/main
+	$(MAKE) -C ./examples/length_of_string
+	$(MAKE) -C ./examples/args
+	$(MAKE) -C ./examples/print_contents_of_file
+	$(MAKE) -C ./examples/brk_test
+	$(MAKE) -C ./examples/smiley
+	$(MAKE) -C ./examples/dog_trie
+
+_shared_examples:
+	# $(MAKE) -C ./examples/split_substrings shared 
+	$(MAKE) -C ./examples/hello_world shared
+	# $(MAKE) -C ./examples/integer_value shared
+	# $(MAKE) -C ./examples/printf_string shared
+	# $(MAKE) -C ./examples/length_of_string shared
+	# $(MAKE) -C ./examples/args shared
+	# $(MAKE) -C ./examples/print_contents_of_file shared
+	# $(MAKE) -C ./examples/brk_test shared
+	# $(MAKE) -C ./examples/smiley shared
+	# $(MAKE) -C ./examples/dog_trie shared
+
+
 _lib2:
 	$(MAKE) -C ./lib2/
-
-_length_of_a_string: _lib2
-	$(MAKE) -C ./examples/length_of_string
-	# ./examples/length_of_string/main
-
-_args: _lib2
-	$(MAKE) -C ./examples/args
-	
-_print_contents_of_file: _lib2
-	$(MAKE) -C ./examples/print_contents_of_file
-
-_brk_test: _lib2
-	$(MAKE) -C ./examples/brk_test
-
-_smiley: _lib2
-	$(MAKE) -C ./examples/smiley
-
-_dog_trie: _lib2
-	$(MAKE) -C ./examples/dog_trie

@@ -224,7 +224,7 @@ bool purge() {
         AlocMeta* next = current->next_meta;
         memset(current, 0, sizeof(AlocMeta));
         prev->next_meta = next;
-        printf("%x -> %x. Hidden %x\n", prev, next, current);
+        // printf("%x -> %x. Hidden %x\n", prev, next, current);
 
         return PURGE_HAS_MORE;
     } else {
@@ -281,7 +281,7 @@ void free(void* ptr) {
     while (purge()!=PURGE_END){}
     // printf("nodes after %i \n", calc_list_len());
     if (before!=calc_list_len()) {
-        printf(" purged %i \n", before - calc_list_len());
+        // printf(" purged %i \n", before - calc_list_len());
     }
 }
 

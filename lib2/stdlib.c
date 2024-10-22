@@ -14,7 +14,7 @@ int abs(int j) {
 
 
 
-extern int exit_code;
+static int exit_code;
 void exit(int status) {
 	exit_code = status;
 	__deinit();

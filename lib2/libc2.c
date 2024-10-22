@@ -3,6 +3,7 @@
 #include "stdio.h"
 #include "stdlib.h"
 #include "malloc.h"
+#include "libc2.h"
 
 #define true 1
 #define false 0
@@ -51,20 +52,6 @@ void* sbrk(void* increment){
 	return (void*) brk_current;
 }
 
-
-
-
-
-
-
-
-
-// void putc(char c, int stream) {
-// 	sys_write(1, &c, 1);
-// }
-
-
-
 int exit_code = 0;
 void __deinit(){
 	flush_stdout();
@@ -90,6 +77,7 @@ static void collect_args(int argc, char* first_arg, char** out){
 }
 
 void __c_entry(int argc, char* first_arg) {
+	// sys_write(1, "meow\n",5);
 	char* args[argc];
 	collect_args(argc, first_arg, &args);
 
@@ -99,11 +87,7 @@ void __c_entry(int argc, char* first_arg) {
 	__deinit();
 }
 
- asm (".globl _start\n\t"
- 	"_start:\n\t"
- 	"pop %rdi\n\t"
-	"pop %rsi\n\t"
-	"call __c_entry\n\t");
+
 
 
 int tolower(int c) {
@@ -116,37 +100,6 @@ int tolower(int c) {
 	}
 
 }
-
-
-// inline void sys_exit(int status){
-// 	asm("movq %rax, $60");
-// 	asm("syscall");
-// }
-
-//char* _start = asm("movq %rax, $60");
-
-// inline void _start() {
-// 	sys_exit(0);
-// }
-
-// extern void _start();
-
-
-
-
-
-// int open(const char* filename, int flags, mode_t mode) {
-
-// }
-
-// int open(const char* filename, int flags) {
-// 	return -1;
-// }
-
-
-
-
-//extern size_t sys_read(int fd, char* buffer, size_t count);
 
 void perror(const char* str) {
 	sys_write(2, str, strlen(str));
