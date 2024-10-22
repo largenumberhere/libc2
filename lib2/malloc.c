@@ -24,25 +24,24 @@ The design:
 
 #define PRIMITIVE_MALLOC 0
 
-#if PRIMITIVE_MALLOC == 1
-// static void* alloc_meta_start = NULL;
-// static size_t alloc_meta_capacity = 0;
-// static size_t alloc_meta_cur = 0;
-// static void* alloc0 = NULL;
-// static size_t capacity = 0;
-// static size_t len = 0;
+#if PRIMITIVE_MALLOC == 0
 
-ssize_t nearest_multiple_of_16(ssize_t number);
-
-typedef struct {
-    size_t start;
+typedef struct AlocMeta
+{
     size_t len;
-    size_t next_meta;
+    void* start;
     bool freed;
+    struct AlocMeta* next_meta;
 } AlocMeta;
 
+typedef struct HeadNode {
+    AlocMeta* first;
+} HeadNode;
 
-// static int a = sizeof(AlocMeta)
+static HeadNode head = {0};
+static void* alloc_start = NULL;
+static size_t alloc_len = 0;
+static size_t alloc_cap = 0;
 
 // https://codebrowser.dev/glibc/glibc/sysdeps/unix/sysv/linux/bits/mman-linux.h.html
 #define PROT_READ 0x1
@@ -73,7 +72,7 @@ static void* map_alloc(void* hint, size_t length) {
 }
 
 static void unmap_alloc(void* start, size_t length) {
-    printf("start:%x\n", start);
+    // printf("start:%x\n", start);
     if(sys_munmap(start, length)!=0) {
         perror("munmap failed\n");
         sys_exit(4);
@@ -82,29 +81,7 @@ static void unmap_alloc(void* start, size_t length) {
     return;
 }
 
-// static void try_init_meta() {
-//     if (alloc_meta_start == NULL) {
-//         alloc_meta_start = map_alloc(NULL, sizeof(AlocMeta)*128);
-//         alloc_meta_capacity = sizeof(AlocMeta)*128;
-//         alloc_meta_cur = 0;
-//     }
-// }
-
-// x86_64 cpus like 16-byte alignment
-ssize_t nearest_multiple_of_16(ssize_t number){
-	//printf("input %i\n", number);
-	ssize_t i = 16;
-	while (i < number)
-	{
-		i+=16;
-	}
-
-	//printf("outputting %i\n", i);
-
-	return i;
-}
-
-ssize_t nearest_page(ssize_t number) {
+static ssize_t nearest_page(ssize_t number) {
     ssize_t i = 4096;
 	while (i < number)
 	{
@@ -115,296 +92,198 @@ ssize_t nearest_page(ssize_t number) {
 	return i;
 }
 
-static size_t round_up (size_t size) {
-    size_t min = size+sizeof(AlocMeta);
-    return (size_t)nearest_page((ssize_t)min);
+
+static void try_init(size_t malloc_size) {
+    if(alloc_start==NULL) {
+        ssize_t gross = nearest_page(sizeof(AlocMeta)+malloc_size); 
+        void* mem = map_alloc(NULL, (size_t) gross);
+        memset(mem, 0, (size_t)gross);
+        alloc_cap  = gross;
+        alloc_len = 0;
+        alloc_start = mem;
+
+        head.first = NULL;
+    }
 }
 
-
-AlocMeta* init_meta(void* buffer, size_t len) {
+AlocMeta* init_meta(void* buffer, size_t alloc_len) {
     AlocMeta* a = (AlocMeta*) buffer;
     memset(a, 0, sizeof(AlocMeta));
     a->start = buffer + sizeof(AlocMeta);
     a->freed = false;
-    a->len = len;
+    a->len = alloc_len;
     a->next_meta = NULL;
 
     return a;
 }
 
-
-
-void* alloc_start = NULL;
-size_t alloc_cap = 0;
-size_t alloc_len = 0;
-
-// returns null if cannot fit between other items
-void* try_fit(size_t size) {
-    if (alloc_start ==NULL) {
-        return NULL;
+size_t calc_list_len() {
+    if(head.first==NULL) {
+        return 0;
     }
 
-    bool room = false;
-    AlocMeta* prev = NULL;
-    AlocMeta* current = alloc_start;
-    while(current->next_meta!=NULL) {
-        if(prev!=NULL) {
-            //check for room
-            if (prev->next_meta != prev->start + prev->len) {
-                room = true;
-                break;
-            } else {
-                // printf("no room\n");
-            }
-        } 
+    // if (head.first->next_meta==NULL) {
+    //     return 1;
+    // }
 
-        prev = current;
+    // else if (head.first->next_meta->next_meta==NULL) {
+    //     return 2;
+    // }
+
+    size_t i = 1;
+    AlocMeta* current = head.first;
+    while (current->next_meta != NULL)
+    {
+        i+=1;
+        current = current->next_meta;
+    }
+    
+
+    return (size_t)i;
+}
+
+// returns null if empty
+AlocMeta* list_last() {
+    // printf("walking list\n");
+
+    AlocMeta* ret;
+
+    if (head.first==NULL) {
+        ret = NULL;
+    }
+    else {
+        AlocMeta* current = head.first;
+        while (current->next_meta!=NULL)
+        {
+            // printf("visited %x\n", current);
+            current = current->next_meta;
+        }
+
+        ret = current;
+        
+    }
+
+    return ret;
+}
+
+void bump(size_t extra_cap) {
+    map_alloc(alloc_start+alloc_cap, nearest_page(extra_cap));
+    memset(alloc_start+alloc_cap, 0, extra_cap);
+    alloc_cap += nearest_page(extra_cap);
+}
+
+AlocMeta* list_push(size_t malloc_size) {
+    AlocMeta* last = list_last();
+
+    size_t required = malloc_size+sizeof(AlocMeta);
+    size_t free = alloc_cap - alloc_len;
+    if(required > free) {
+        bump(required - free);
+    }
+
+    AlocMeta* new = init_meta(alloc_start+alloc_len, malloc_size);
+    if(last!=NULL) {
+        last->next_meta = new;
+    } else {
+        head.first = new;
+    }
+
+    alloc_len+=(sizeof(AlocMeta)+malloc_size);
+
+    return new;
+}
+
+#define PURGE_HAS_MORE true
+#define PURGE_END false
+
+// returns true when there's no item left to purge
+bool purge() {
+    size_t len = calc_list_len();
+    if(len==0) {
+        // no head node
+        return PURGE_END;
+    } else if (len==1) {
+        // head is last node
+        if(head.first->freed) {
+            // so no head?
+            memset(head.first, 0, sizeof(AlocMeta));
+            head.first==NULL;
+        }
+        return PURGE_END;
+    }
+
+    AlocMeta* current = head.first->next_meta;
+    AlocMeta* prev = head.first;
+    while (current->next_meta!=NULL && current->freed==false)
+    {
+        prev = current;   
+        current = current->next_meta;
+        // printf("visiting %x\n", current); 
+    }
+    if (current->freed) {
+        AlocMeta* next = current->next_meta;
+        memset(current, 0, sizeof(AlocMeta));
+        prev->next_meta = next;
+        printf("%x -> %x. Hidden %x\n", prev, next, current);
+
+        return PURGE_HAS_MORE;
+    } else {
+        return PURGE_END;
+    }
+    
+}
+
+bool mark_freed(void* malloc_ptr) {
+    if (head.first==NULL) {
+        return false;
+    }
+    
+    AlocMeta* current = head.first;
+    while (current->start!=malloc_ptr && current->next_meta!=NULL)
+    {
         current = current->next_meta;
     }
 
-    if (room) {
-        printf("room found\n");
-    } else {
-        printf("no room\n");
+    if(current->start!=malloc_ptr) {
+        return false;
     }
 
-    return NULL;
+    current->freed = true;
+    return true;
 }
 
-void* allocate(size_t size) {
-    try_fit(size);
-
-    if (alloc_cap == 0) {
-        // handle initialization and first allocation
-        size_t min_page = round_up(size + sizeof(AlocMeta));
-        void* start = map_alloc(NULL, min_page);
-        alloc_start = (size_t) start;
-        // printf("alloc_start:%x\n", alloc_start);
-        alloc_cap = min_page;
-        
-        AlocMeta* header = init_meta(start, size);
-        alloc_len = (size_t) (size+sizeof(AlocMeta));
-        printf("created head node at %x\n", header);
-
-        return header->start;
-    } else {
-        // handle 2nd allocation
-        AlocMeta* header0 = (AlocMeta*) alloc_start;
-        AlocMeta* header1;
-        if (header0->next_meta == NULL) {
-            // size_t rem = alloc_cap - size;
-            size_t max_addr = (size_t)alloc_start + alloc_len + size + sizeof(AlocMeta);
-            // printf("max_addr: %x\n", max_addr);
-            // printf("alloc end: %x\n", alloc_start+alloc_cap);
-            size_t alloc_end = alloc_start + alloc_cap;
-            if (max_addr >= alloc_end) {
-                // need reallocation
-                UNIMPLEMENTED();
-            } else {
-                // printf("alloc_len: %i\n", alloc_len);
-                header1 = init_meta(alloc_start+alloc_len, size);
-                header0->next_meta = (size_t) header1;
-                alloc_len+=(size+sizeof(AlocMeta));
-                printf("%x -> %x\n", header0, header1);
-
-                // printf("assigned\n");
-
-                return header1->start;
-            }
-        } else {
-            //handle 3rd or more more allocation
-            AlocMeta* prev = header0;
-            AlocMeta* current = header0->next_meta;
-            while(true) {
-                if (current == NULL) {
-                    break;
-                }
-                
-                prev = current;
-                current = current->next_meta;
-            }
-            // printf("prev: %x", prev);
-            // printf("prev size: %x", prev->len);
-            // printf("found next\n");
-
-            size_t max_addr = (size_t)alloc_start + alloc_len + size + sizeof(AlocMeta);
-            // printf("max_addr: %x\n", max_addr);
-            // printf("alloc end: %x\n", alloc_start+alloc_cap);
-            size_t alloc_end = alloc_start + alloc_cap;
-
-            if (max_addr >= alloc_end) {
-                // 3rd or more malloc requires more room
-                // calculate additional bytes required
-                size_t extra_bytes = size+ (alloc_cap-alloc_len);
-                // round  up bytes
-                size_t extra_bytes2 = round_up(extra_bytes);
-                // allocate bytes at end of current cap
-                map_alloc(alloc_start+alloc_cap, extra_bytes2);
-                // printf("allocated at %x", alloc_start+alloc_cap);
-                // update cap
-                // printf("Allocated extra %x\n", extra_bytes2);
-                // printf("old cap: %x\n", alloc_cap);
-                alloc_cap = alloc_cap + extra_bytes2;
-                // do allocation
-                // printf("new cap: %x\n", alloc_cap);
-
-                // UNIMPLEMENTED();
-            }
-            // printf("3rd alloc\n");
-            AlocMeta* meta_n = init_meta(alloc_start+alloc_len, size);
-            prev->next_meta = meta_n;
-                printf("%x -> %x\n", prev, meta_n);
-            alloc_len+=(size+sizeof(AlocMeta));
-
-            return meta_n->start;
-        }
-    }
+static void* alloc(size_t alloc_size) {
+    // printf("allocating\n");
+    try_init(alloc_start);
+    AlocMeta* new = list_push(alloc_size);
+    // printf("list len: %i", calc_list_len());
+    return new->start;
 }
 
 void* malloc(size_t size) {
-    printf("requested %i\n", size);
-    //printf("Allocating between %x and %x for size %x\n", alloc0, alloc0+len, size);
-    void* a = allocate(size);
-    printf("size '%x' allocated at %x\n",(int)size , (size_t)a);
-
-    memset(a, 0, size);
-
-    return a;
-}
-void *calloc(size_t nmemb, size_t size) {
-    
-    void* a =  malloc(nmemb*size);
-    //memset(a, 0, size);
-
-    return a;
+    return alloc(size);
 }
 
-
-
-// remove any items flagged as freed
-void purge_list() {
-    if(alloc_start!=NULL && ((AlocMeta*)alloc_start)->freed){
-        // todo: handle list head removal
-        //UNIMPLEMENTED();
-        unmap_alloc(alloc_start, alloc_cap);
-        alloc_start = NULL;
-        alloc_cap = 0;
-        alloc_len =0;
-
-        return;
-
-    } if(alloc_start==NULL) {
-        return;
-    }
-    
-    AlocMeta* one = alloc_start;
-
-    AlocMeta* current = one;
-    AlocMeta* prev = NULL;
-    while (current->next_meta!=NULL)
-    {
-        if(prev!=NULL) {
-            if(current->freed==true) {
-                // hide unused node    
-                AlocMeta* next = current->next_meta;
-                prev->next_meta = next;
-                
-                printf("node %x hidden. ", current);
-                printf("%x -> %x\n", prev, next);
-                return;
-            }
-        }
-
-        prev = current;
-        current = current->next_meta;
-    }
-
-    printf("no nodes hidden\n");
-
-    return;
-}
-
-
-void mark_freed(void* ptr) {
-    if(ptr==NULL) {
-        perror("Null pointer passed to free\n");
-        return;
-    }
-
-    // printf("freeing %x\n", ptr);
-    AlocMeta* start = alloc_start;
-    AlocMeta* two;
-    AlocMeta* three;
-    if (start!=NULL) {
-        two = start->next_meta;
-    } else {
-        two = NULL;
-    }
-    if (two!=NULL) {
-        three == two->next_meta;
-    } else {
-        three = NULL;
-    }
-    
-    if(start==NULL) {
-        perror("Double free detected\n");
-        return;
-    }
-
-    else if (two==NULL) {
-        // it must be first
-        if (start->start!=ptr) {
-            perror("start->next is NULL. invalid free performed\n");
-            return;
-        }
-
-        start->freed = true;
-        printf("freed start %x\n", ptr);
-        return;
-    } else if (three==NULL) {
-        // it must be 2
-        if (two->start != ptr) {
-            perror("invalid free performed on two\n");
-            return;
-        }
-
-        two->freed = true;
-        // printf("freed two %x\n", ptr);
-        return;
-    } else {
-        // it must be third or more
-        AlocMeta* prev = (AlocMeta*)start;
-        AlocMeta* current = (AlocMeta*)two;
-        while (current->next_meta!=NULL && current->start!=ptr)
-        {
-            // printf("visited node %x\n", current->start);
-            prev = current;
-            current = current->next_meta;
-        }
-        
-        if (current->start!=ptr ||  current->freed == true) {
-            perror("invalid free performed on 3rd or more\n");
-            printf("addr %x!=%x\n", ptr, current->start);
-            return;
-        }
-
-        // printf("freeing 3+ %x\n", current->start);
-        current->freed = true; 
-        return;
-    }
-
-
-    UNIMPLEMENTED();
-
-    return;
+void* calloc(size_t nmemnb, size_t size) {
+    return alloc(size*nmemnb);
 }
 
 void free(void* ptr) {
-    mark_freed(ptr);
-    printf("freed %x\n", (size_t) ptr);
-    purge_list();
-}
+    // UNIMPLEMENTED();
+    if(!mark_freed(ptr)) {
+        printf("failed to free memory %x\n", ptr);
+    }
 
+    size_t before = calc_list_len();
+    // printf("purging\n");
+    // printf("\n");
+    // printf("nodes before: %i \n", calc_list_len());
+    while (purge()!=PURGE_END){}
+    // printf("nodes after %i \n", calc_list_len());
+    if (before!=calc_list_len()) {
+        printf(" purged %i \n", before - calc_list_len());
+    }
+}
 
 #else
 

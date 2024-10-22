@@ -285,6 +285,11 @@ static void write_hex(size_t val) {
 }
 
 static void write_int(int val) {
+	if (val < 0) {
+		putc('-', 1);
+		val = -val;
+	}
+
 	int len;
 	char buff[32] = {0};
 	itoa((size_t)val, &len, &buff);
