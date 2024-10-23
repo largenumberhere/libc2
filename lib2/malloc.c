@@ -50,11 +50,6 @@ static size_t alloc_cap = 0;
 #define MAP_FIXED 0x10
 #define MAP_PRIVATE	0x02
 
-// #define asizeof(item)   \
-//     nearest_multiple_of_16(sizeof(item))   
-
-// static void* alloc0 = NULL;
-
 static void* map_alloc(void* hint, size_t length) {
     void* allocation;
     if (hint==NULL) {
@@ -72,7 +67,6 @@ static void* map_alloc(void* hint, size_t length) {
 }
 
 static void unmap_alloc(void* start, size_t length) {
-    // printf("start:%x\n", start);
     if(sys_munmap(start, length)!=0) {
         perror("munmap failed\n");
         sys_exit(4);
@@ -82,14 +76,12 @@ static void unmap_alloc(void* start, size_t length) {
 }
 
 static ssize_t nearest_page(ssize_t number) {
-    ssize_t i = 4096;
-	while (i < number)
-	{
-		i+=4096;
-	}
-
-
-	return i;
+    while (number % 4096 !=0)
+    {
+        number +=1;
+    }
+    
+	return number;
 }
 
 
@@ -122,14 +114,6 @@ size_t calc_list_len() {
         return 0;
     }
 
-    // if (head.first->next_meta==NULL) {
-    //     return 1;
-    // }
-
-    // else if (head.first->next_meta->next_meta==NULL) {
-    //     return 2;
-    // }
-
     size_t i = 1;
     AlocMeta* current = head.first;
     while (current->next_meta != NULL)
@@ -144,8 +128,6 @@ size_t calc_list_len() {
 
 // returns null if empty
 AlocMeta* list_last() {
-    // printf("walking list\n");
-
     AlocMeta* ret;
 
     if (head.first==NULL) {
@@ -155,7 +137,6 @@ AlocMeta* list_last() {
         AlocMeta* current = head.first;
         while (current->next_meta!=NULL)
         {
-            // printf("visited %x\n", current);
             current = current->next_meta;
         }
 
@@ -170,6 +151,46 @@ void bump(size_t extra_cap) {
     map_alloc(alloc_start+alloc_cap, nearest_page(extra_cap));
     memset(alloc_start+alloc_cap, 0, extra_cap);
     alloc_cap += nearest_page(extra_cap);
+}
+
+// Try to insert into any unused memory 
+// returns NULL if it cannot
+AlocMeta* list_insert(size_t malloc_size) {
+    if (alloc_start==NULL) {
+        return NULL;
+    }
+
+
+    AlocMeta* current = head.first;
+
+    // there is no head
+    if (current==NULL) {
+        return NULL;
+    }
+
+    while (current->next_meta!=NULL)
+    {
+        if((ssize_t)current->next_meta > (ssize_t)current->start+current->len) {
+            
+            size_t space = (size_t) current->start + current->len - (size_t) current->next_meta;
+            // room found
+            if (space >= malloc_size+sizeof(AlocMeta)) {
+                // create header
+                AlocMeta* new = init_meta(current->start+current->len, malloc_size);
+                
+                // insert into linked list
+                new->next_meta = current->next_meta;
+                current->next_meta = new;
+
+                return new;
+            }
+        }
+
+        current=current->next_meta;
+    }
+
+    // no gap found
+    return NULL;
 }
 
 AlocMeta* list_push(size_t malloc_size) {
@@ -218,13 +239,11 @@ bool purge() {
     {
         prev = current;   
         current = current->next_meta;
-        // printf("visiting %x\n", current); 
     }
     if (current->freed) {
         AlocMeta* next = current->next_meta;
         memset(current, 0, sizeof(AlocMeta));
         prev->next_meta = next;
-        // printf("%x -> %x. Hidden %x\n", prev, next, current);
 
         return PURGE_HAS_MORE;
     } else {
@@ -233,6 +252,20 @@ bool purge() {
     
 }
 
+// if there's at least a page of memory left over from frees, give it back to the kernel
+void try_shrink() {
+    AlocMeta* last = list_last();
+    void* end_ptr = last->start + last->len;
+    void* end_rounded = nearest_page(end_ptr);
+    if(end_rounded < nearest_page(alloc_start+alloc_cap)) {
+        size_t excess_bytes = nearest_page(alloc_start+alloc_cap) - (size_t) end_rounded;
+        unmap_alloc(end_rounded, excess_bytes);
+        alloc_cap-=excess_bytes;
+    }
+}
+
+// find a matching address and mark it to be freed
+// returns false if the address is not found
 bool mark_freed(void* malloc_ptr) {
     if (head.first==NULL) {
         return false;
@@ -253,15 +286,24 @@ bool mark_freed(void* malloc_ptr) {
 }
 
 static void* alloc(size_t alloc_size) {
-    // printf("allocating\n");
     try_init(alloc_start);
-    AlocMeta* new = list_push(alloc_size);
-    // printf("list len: %i", calc_list_len());
-    return new->start;
+
+    AlocMeta* new = list_insert(alloc_size);    
+    if (new==NULL) {
+        AlocMeta* new = list_push(alloc_size);
+        return new->start;
+    } else {
+            
+        return new->start;
+    }
+
+    UNIMPLEMENTED();
 }
 
 void* malloc(size_t size) {
-    return alloc(size);
+    void* a = alloc(size);
+    printf("malloc %x\n", a);
+    return a;
 }
 
 void* calloc(size_t nmemnb, size_t size) {
@@ -269,20 +311,16 @@ void* calloc(size_t nmemnb, size_t size) {
 }
 
 void free(void* ptr) {
-    // UNIMPLEMENTED();
+    printf("free %x\n", ptr);
+    
     if(!mark_freed(ptr)) {
         printf("failed to free memory %x\n", ptr);
     }
 
     size_t before = calc_list_len();
-    // printf("purging\n");
-    // printf("\n");
-    // printf("nodes before: %i \n", calc_list_len());
     while (purge()!=PURGE_END){}
-    // printf("nodes after %i \n", calc_list_len());
-    if (before!=calc_list_len()) {
-        // printf(" purged %i \n", before - calc_list_len());
-    }
+
+    try_shrink();
 }
 
 #else
@@ -309,16 +347,12 @@ void* malloc(size_t size) {
 void *calloc(size_t nmemb, size_t size) {
 	ssize_t res = (ssize_t) nmemb * (ssize_t) size;
 	if (res < 0) {
-		printf("Calloc failed because size was too big\n");
+		perror("Calloc failed because size was too big\n");
 		return NULL;
 	}
 
-	// printf("allocating %i", (int)res);
 	void* buff = malloc((size_t)res);
-	// printf("clearing buffer\n");
 	memset(buff, 0, res);
-
-	// printf("allocated %i\n", (int)res);
 
 	return buff;
 }
