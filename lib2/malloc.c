@@ -4,12 +4,42 @@
 #include "libc2.h"
 #include "debug_util.h"
 /*
-The design:
-- the memory shall be laid out like so
-[AlocMeta, memory] [AlocMeta, memory] ...
-- AllocMeta will contain the length of the memory region, the start of it
+The lib2 heap Allocator!
 
- */
+The allocator design:
+This uses a linked-list allocator design.
+
+When malloc is called:
+As needed, pages of memory is requested from the kernel. Into these pages, linked-list-like nodes are placed. 
+The space between nodes is calculated and the allocation  will be placed at the first or at the end. 
+Each list node starts with the AlocMeta struct describing the region which is linked to any preceding and following nodes. 
+A pointer to the region after the metadata is returned to the caller.
+
+The memory may look like this:
+[AlocMeta, region][AlocMeta, region]  (unused) [AlocMeta, region]
+
+The node structure may look like this:
+head -> AlocMeta -> AlocMeta -> NULL
+
+When free is called:
+The linked-list is walked and if an item is found with the address given it is marked to be freed, the item is then unliked and hidden from other nodes creating a gap.
+When enough memory is freed, pages are given back to the kernel.
+
+Many further modifications could be made for performance or convienience however they would come at the expense of simplicity and readability. 
+Some ideas for readers' consideration:
+ - lots of bookeeping could be cached such as the last node
+ - the list_len function could be eliminated to prevent walking the whole list
+ - the free function could have most of its behaviour gated behind debug mode assertions. Various other optimization shortcuts could be made in the logic which cause undefined behaviour if misused
+ - additional complex logic could be added to put small, large and huge allocations in specific page ranges to minimize the losses heap fragmentation
+ - the kernel mapping behaviour could be rounded up to larger multiples (such as 4kb) to limit expensive system calls
+ - mark_freed and purge could be reworked into a single step without duplicated logic
+ - the allocations could be aligned to sizes like 16bytes for CPU alignment frendliness
+ - The linked-list structure could be replaced with an array-list-like structure. 
+   This would limit expensive branch prediction failures and cache misses associated with linked lists on modern optimizing CPUS
+ - Remove any reduntant information in the linked lists like freed, start, etc to limit overhead
+ - convert if statements to compiler optimization friendly case statements
+ - use vector instructions to speed up any rote logic
+*/
 
 
 #define size_t unsigned long long
@@ -28,10 +58,10 @@ The design:
 
 typedef struct AlocMeta
 {
-    size_t len;
-    void* start;
-    bool freed;
-    struct AlocMeta* next_meta;
+    size_t len;                 // the length of the region allocated
+    void* start;                // the starting address of the allocation
+    bool freed;                 // whether the allocation is to be freed
+    struct AlocMeta* next_meta; // the next node or NULL
 } AlocMeta;
 
 typedef struct HeadNode {
@@ -50,6 +80,7 @@ static size_t alloc_cap = 0;
 #define MAP_FIXED 0x10
 #define MAP_PRIVATE	0x02
 
+// grab a block of memory from the OS
 static void* map_alloc(void* hint, size_t length) {
     void* allocation;
     if (hint==NULL) {
@@ -59,13 +90,14 @@ static void* map_alloc(void* hint, size_t length) {
     }
     if (allocation == (void*)-1) {
         perror("map_alloc failed\n");
-        printf("failed to allocate memory for the allocator\n");
+        perror("failed to allocate memory for the allocator\n");
         sys_exit(3);
     }
 
     return allocation;
 }
 
+// release a block of memory back to the OS
 static void unmap_alloc(void* start, size_t length) {
     if(sys_munmap(start, length)!=0) {
         perror("munmap failed\n");
@@ -75,6 +107,8 @@ static void unmap_alloc(void* start, size_t length) {
     return;
 }
 
+// Round a value up to the nearest multiple of one page. 
+// Pages are the minumum unit size that the OS deals with memory.
 static ssize_t nearest_page(ssize_t number) {
     while (number % 4096 !=0)
     {
@@ -84,7 +118,7 @@ static ssize_t nearest_page(ssize_t number) {
 	return number;
 }
 
-
+// initialize the allocator if neccesary
 static void try_init(size_t malloc_size) {
     if(alloc_start==NULL) {
         ssize_t gross = nearest_page(sizeof(AlocMeta)+malloc_size); 
@@ -98,6 +132,7 @@ static void try_init(size_t malloc_size) {
     }
 }
 
+// create a default AlocMeta struct
 AlocMeta* init_meta(void* buffer, size_t alloc_len) {
     AlocMeta* a = (AlocMeta*) buffer;
     memset(a, 0, sizeof(AlocMeta));
@@ -109,6 +144,7 @@ AlocMeta* init_meta(void* buffer, size_t alloc_len) {
     return a;
 }
 
+// calculate the number of linked list nodes
 size_t calc_list_len() {
     if(head.first==NULL) {
         return 0;
@@ -122,10 +158,10 @@ size_t calc_list_len() {
         current = current->next_meta;
     }
     
-
     return (size_t)i;
 }
 
+// get the last node in the list
 // returns null if empty
 AlocMeta* list_last() {
     AlocMeta* ret;
@@ -147,19 +183,20 @@ AlocMeta* list_last() {
     return ret;
 }
 
+// grab more memory from the OS
 void bump(size_t extra_cap) {
-    map_alloc(alloc_start+alloc_cap, nearest_page(extra_cap));
-    memset(alloc_start+alloc_cap, 0, extra_cap);
-    alloc_cap += nearest_page(extra_cap);
+    size_t bytes = nearest_page(extra_cap);
+    map_alloc(alloc_start+alloc_cap, bytes);
+    // memset(alloc_start+alloc_cap, 0, bytes);
+    alloc_cap += bytes;
 }
 
-// Try to insert into any unused memory 
-// returns NULL if it cannot
+// Try to insert into any unused gaps in memory 
+// returns NULL on failure
 AlocMeta* list_insert(size_t malloc_size) {
     if (alloc_start==NULL) {
         return NULL;
     }
-
 
     AlocMeta* current = head.first;
 
@@ -193,6 +230,7 @@ AlocMeta* list_insert(size_t malloc_size) {
     return NULL;
 }
 
+// add a node at the end of the list
 AlocMeta* list_push(size_t malloc_size) {
     AlocMeta* last = list_last();
 
@@ -217,6 +255,7 @@ AlocMeta* list_push(size_t malloc_size) {
 #define PURGE_HAS_MORE true
 #define PURGE_END false
 
+// remove any nodes from the list that are marked for freeing
 // returns true when there's no item left to purge
 bool purge() {
     size_t len = calc_list_len();
@@ -261,6 +300,7 @@ void try_shrink() {
         size_t excess_bytes = nearest_page(alloc_start+alloc_cap) - (size_t) end_rounded;
         unmap_alloc(end_rounded, excess_bytes);
         alloc_cap-=excess_bytes;
+        printf("alloc_cap = %x\n", alloc_cap);
     }
 }
 
@@ -285,6 +325,7 @@ bool mark_freed(void* malloc_ptr) {
     return true;
 }
 
+// make an allocation
 static void* alloc(size_t alloc_size) {
     try_init(alloc_start);
 
@@ -297,36 +338,39 @@ static void* alloc(size_t alloc_size) {
         return new->start;
     }
 
-    UNIMPLEMENTED();
+    UNIMPLEMENTED(); //unreachable
 }
 
 void* malloc(size_t size) {
     void* a = alloc(size);
-    printf("malloc %x\n", a);
+
     return a;
 }
 
 void* calloc(size_t nmemnb, size_t size) {
-    return alloc(size*nmemnb);
+    void* a = alloc(size*nmemnb);
+    memset(a, 0, size*nmemnb);
+    return a;
 }
 
 void free(void* ptr) {
-    printf("free %x\n", ptr);
+    if (ptr == NULL) {
+        return;
+    }
     
     if(!mark_freed(ptr)) {
         printf("failed to free memory %x\n", ptr);
     }
-
-    size_t before = calc_list_len();
+    
     while (purge()!=PURGE_END){}
 
     try_shrink();
 }
 
 #else
-
-// A simple bump allocator. 
-// It's as simple as an allocator can get but it's almost useless 
+// A simple backup bump allocator. 
+// It's as simple as an allocator can get but it's almost useless. 
+// It has no way to reuse or reclaim freed memory. However, it's useful for debugging purposes because it's too simple to go wrong.
 static ssize_t pointers = 0;
 static void* alloc_start = NULL;
 static size_t alloc_size = 0;
