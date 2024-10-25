@@ -84,9 +84,9 @@ static size_t alloc_cap = 0;
 static void* map_alloc(void* hint, size_t length) {
     void* allocation;
     if (hint==NULL) {
-        allocation =  sys_mmap(hint, length, PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE, NULL, NULL);
+        allocation =  sys_mmap(hint, length, PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE, (int) NULL, (long) NULL);
     } else {
-        allocation = sys_mmap(hint, length, PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE | MAP_FIXED, NULL, NULL);
+        allocation = sys_mmap(hint, length, PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE | MAP_FIXED, (int) NULL, (long) NULL);
     }
     if (allocation == (void*)-1) {
         perror("map_alloc failed\n");
@@ -185,7 +185,7 @@ AlocMeta* list_last() {
 
 // grab more memory from the OS
 void bump(size_t extra_cap) {
-    size_t bytes = nearest_page(extra_cap);
+    size_t bytes = nearest_page((ssize_t)extra_cap);
     map_alloc(alloc_start+alloc_cap, bytes);
     // memset(alloc_start+alloc_cap, 0, bytes);
     alloc_cap += bytes;
@@ -267,7 +267,7 @@ bool purge() {
         if(head.first->freed) {
             // so no head?
             memset(head.first, 0, sizeof(AlocMeta));
-            head.first==NULL;
+            head.first==NULL;   // maybe bug?
         }
         return PURGE_END;
     }
@@ -295,9 +295,9 @@ bool purge() {
 void try_shrink() {
     AlocMeta* last = list_last();
     void* end_ptr = last->start + last->len;
-    void* end_rounded = nearest_page(end_ptr);
-    if(end_rounded < nearest_page(alloc_start+alloc_cap)) {
-        size_t excess_bytes = nearest_page(alloc_start+alloc_cap) - (size_t) end_rounded;
+    void* end_rounded = (void*) nearest_page((ssize_t)end_ptr);
+    if((ssize_t)end_rounded < nearest_page((ssize_t)alloc_start+ (ssize_t)alloc_cap)) {
+        size_t excess_bytes = (size_t) nearest_page((ssize_t)alloc_start+(ssize_t)alloc_cap) - (size_t) end_rounded;
         unmap_alloc(end_rounded, excess_bytes);
         alloc_cap-=excess_bytes;
         printf("alloc_cap = %x\n", alloc_cap);
@@ -327,7 +327,7 @@ bool mark_freed(void* malloc_ptr) {
 
 // make an allocation
 static void* alloc(size_t alloc_size) {
-    try_init(alloc_start);
+    try_init((size_t)alloc_start);
 
     AlocMeta* new = list_insert(alloc_size);    
     if (new==NULL) {
