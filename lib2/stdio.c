@@ -194,7 +194,15 @@ FILE* fopen(const char* pathname, const char*mode) {
 
 	if (mode[0] == 'r' && mode[1] =='\0') {
 		mode_t modet = 0700;	// octal number
-		int fd = sys_open(pathname, 0, modet);
+		
+		char* path2 = malloc(strlen(pathname+3));
+		assert(path2!=0);
+		memset(path2, 0, strlen(pathname));
+		path2[0] = '.';
+		path2[1] = '.';
+		path2[2] = '/';
+		memcpy(path2 + 3, pathname, strlen(pathname));
+		int fd = sys_open(path2, 0, modet);
 		f->fd = fd;
 	}
 	else if(mode[0] == 'w' && mode[1] == '\0') {
