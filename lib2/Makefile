@@ -1,4 +1,4 @@
-COPT = -nostdlib -g -O0 -L./*.h
+COPT = -nostdlib -g -O0 -L./*.h -Wno-int-conversion -Wno-incompatible-library-redeclaration 
 NOPT = 
 
 _main:
@@ -11,7 +11,7 @@ _main:
 	clang -c ./syscall.c -o build/syscall.o $(COPT)
 	clang -c ./crt0.c -o build/crt0.o $(COPT)
 
-	clang -Wnoincompatible-library-redeclaration -c -nostdlib libc2.c -o build/libc2.o -L./*.h -g $(COPT)
+	clang -c -nostdlib libc2.c -o build/libc2.o -L./*.h -g $(COPT)
 	rm -f libc2.a
 	ar cr libc2.a build/*.o
 
