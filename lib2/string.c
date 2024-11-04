@@ -1,3 +1,5 @@
+#include "string.h"
+
 #define size_t unsigned long long
 
 void memset(void* s, int c, size_t n){
