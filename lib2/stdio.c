@@ -333,7 +333,7 @@ int __isoc99_fscanf(FILE* stream, const char* format, ...) {
 	size_t len = strlen(format);
 
 	for (size_t i = 0; i < len; i++) {
-		if(strcmp(format+i, "%s")==0) {
+		if(strncmp(format+i, "%s", 2)==0) {
 			char* out_str = va_arg(ap, char*);
 			size_t out_cur = 0;
 			int c = fgetc(stream);
@@ -345,7 +345,7 @@ int __isoc99_fscanf(FILE* stream, const char* format, ...) {
 			if (out_cur>1) {
 				matches+=1;	
 			}
-		} else if(strcmp(format+1, "%")==0) {
+		} else if(strncmp(format+1, "%", 1)==0) {
 			UNIMPLEMENTED();
 		}
 	}
