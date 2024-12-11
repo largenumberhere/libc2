@@ -2,7 +2,7 @@
 
 int rand(void) {
     // chosen by a fair dice roll
-    return 3;
+    return 4;
 }
 
 void srand(unsigned int seed) {
