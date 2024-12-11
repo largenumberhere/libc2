@@ -69,7 +69,7 @@ size_t sys_brk(size_t brk) {
                                            working directory. */
 
 int sys_open(const char* pathname, int flags, int mode) {
-	return (int) syscall4(257, AT_FDCWD, pathname, flags, mode);
+	return (int) syscall3(2, pathname, flags, mode);
 }
 
 
