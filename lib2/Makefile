@@ -10,6 +10,7 @@ _main:
 	clang -c ./string.c -o build/string.o $(COPT)
 	clang -c ./syscall.c -o build/syscall.o $(COPT)
 	clang -c ./crt0.c -o build/crt0.o $(COPT)
+	clang -c ./rand.c -o build/rand.o $(COPT)
 
 	clang -c -nostdlib libc2.c -o build/libc2.o -g $(COPT)
 	rm -f libc2.a
