@@ -37,7 +37,7 @@ static void handle_format(char* string, size_t len, size_t offset){
 }
 
 int brk(void* addr) {
-	return (int) sys_brk((void*)addr);
+	return (int) sys_brk((size_t)addr);
 }
 
 /* increase program break by increment bytes */
@@ -79,10 +79,10 @@ static void collect_args(int argc, char* first_arg, char** out){
 void __c_entry(int argc, char* first_arg) {
 	// sys_write(1, "meow\n",5);
 	char* args[argc];
-	collect_args(argc, first_arg, &args);
+	collect_args(argc, first_arg, (char**) &args);
 
 	__init();
-	exit_code = main(argc, &args);
+	exit_code = main(argc, (char**) &args);
 
 	__deinit();
 }

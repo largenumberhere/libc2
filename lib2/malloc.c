@@ -84,9 +84,9 @@ static size_t alloc_cap = 0;
 static void* map_alloc(void* hint, size_t length) {
     void* allocation;
     if (hint==NULL) {
-        allocation =  sys_mmap(hint, length, PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE, (int) NULL, (long) NULL);
+        allocation =  sys_mmap(hint, length, PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE, 0, 0);
     } else {
-        allocation = sys_mmap(hint, length, PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE | MAP_FIXED, (int) NULL, (long) NULL);
+        allocation = sys_mmap(hint, length, PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE | MAP_FIXED, 0, 0);
     }
     if (allocation == (void*)-1) {
         perror("map_alloc failed\n");

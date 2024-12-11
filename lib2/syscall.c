@@ -4,6 +4,7 @@
 
 #define size_t unsigned long long
 #define NULL (void*)0
+#define EMPTY 0
 
 static size_t syscall6(int id, size_t reg1, size_t reg2, size_t reg3, size_t reg4, size_t reg5, size_t reg6) {
 	register size_t rax asm("rax") = id;
@@ -25,19 +26,19 @@ static size_t syscall6(int id, size_t reg1, size_t reg2, size_t reg3, size_t reg
 }
 
 static size_t syscall2(size_t id, size_t reg1, size_t reg2) {
-	return syscall6(id, reg1, reg2, NULL, NULL, NULL, NULL);
+	return syscall6(id, reg1, reg2, EMPTY, EMPTY, EMPTY, EMPTY);
 }
 
 static size_t syscall1(size_t id, size_t reg1) {
-	return syscall6(id, reg1, NULL, NULL, NULL, NULL, NULL);
+	return syscall6(id, reg1, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY);
 }
 
 static size_t syscall3(size_t id, size_t reg1, size_t reg2, size_t reg3) {
-	return syscall6(id, reg1, reg2, reg3, NULL, NULL, NULL);
+	return syscall6(id, reg1, reg2, reg3, EMPTY, EMPTY, EMPTY);
 }
 
 static size_t syscall4(size_t id, size_t reg1, size_t reg2, size_t reg3, size_t reg4) {
-	return syscall6(id, reg1, reg2, reg3, reg4, (size_t)NULL, (size_t)NULL);
+	return syscall6(id, reg1, reg2, reg3, reg4, EMPTY, EMPTY);
 }
 
 
@@ -47,10 +48,10 @@ size_t sys_write(int fd, const void* string, size_t len) {
     return v;
 }
 
-void sys_exit(int status) {
+_Noreturn void sys_exit(int status) {
 	syscall1(60, status);
 	
-    return;
+	while (1) {}
 }
 
 size_t sys_read(int fd, char* buffer, size_t count) {
@@ -69,7 +70,7 @@ size_t sys_brk(size_t brk) {
                                            working directory. */
 
 int sys_open(const char* pathname, int flags, int mode) {
-	return (int) syscall3(2, pathname, flags, mode);
+	return (int) syscall4(257, AT_FDCWD, (size_t) pathname, flags, mode);
 }
 
 

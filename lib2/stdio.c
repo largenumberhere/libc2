@@ -6,6 +6,7 @@
 #include <stdarg.h>
 #include "malloc.h"
 #include "debug_util.h"
+
 #define ssize_t signed long long
 
 
@@ -292,7 +293,7 @@ static void write_int(int val) {
 
 	int len;
 	char buff[32] = {0};
-	itoa((size_t)val, &len, &buff);
+	itoa((size_t)val, &len, (char*) &buff);
 	
 	puts_l(buff, len);
 	//sys_write(1, buff, len);
@@ -302,7 +303,7 @@ static void write_int(int val) {
 void perror_int(int val) {
 	int len;
 	char buff[32] = {0};
-	itoa((size_t)val, &len, &buff);
+	itoa((size_t)val, &len, (char*) &buff);
 	perror(buff);
 }
 
@@ -332,7 +333,7 @@ int __isoc99_fscanf(FILE* stream, const char* format, ...) {
 	size_t len = strlen(format);
 
 	for (size_t i = 0; i < len; i++) {
-		if(strcmp(format+i, "%s")==0) {
+		if(strncmp(format+i, "%s", 2)==0) {
 			char* out_str = va_arg(ap, char*);
 			size_t out_cur = 0;
 			int c = fgetc(stream);
@@ -344,7 +345,7 @@ int __isoc99_fscanf(FILE* stream, const char* format, ...) {
 			if (out_cur>1) {
 				matches+=1;	
 			}
-		} else if(strcmp(format+1, "%")==0) {
+		} else if(strncmp(format+1, "%", 1)==0) {
 			UNIMPLEMENTED();
 		}
 	}
@@ -377,7 +378,7 @@ int printf(char* format, ...){
 			puts(s);
 			i+=2;
 		} else if (strncmp(format+i, "%c", 2) == 0) {
-			char c = va_arg(pva, char);
+			char c = (char) va_arg(pva, int);
 			putc(c, 1);
 			i+=2;
 		} else if (strncmp(format+i, "%%",2) == 0) {

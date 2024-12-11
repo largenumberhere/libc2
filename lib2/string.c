@@ -1,19 +1,64 @@
+#include "string.h"
+#include <stdint.h>
 #define size_t unsigned long long
 
 void memset(void* s, int c, size_t n){
-	for(int i = 0; i < n; i++){
-		*(char*)s = (unsigned char) c;
+	char* string = s;
+	
+	char eight[8];
+	if (n > sizeof(uint32_t) || n > sizeof(uint64_t)) {
+		// initalize eight only if it may be read from
+		for (int i = 0; i < sizeof(uint64_t); i++) {
+			eight[i] = (unsigned char) c;
+		} 
+	}
+	while (n > sizeof(uint64_t)) {
+		// copy in 8-byte chunks
+		*(uint64_t*)string = *(uint64_t*) eight;
+		s += sizeof(uint64_t);
+		n -= sizeof(uint64_t);
+	}
+	while (n > sizeof(uint32_t)) {
+		// copy in 4-byte chunks
+		*(uint32_t*)string = *(uint32_t*) eight;
+		s += sizeof(uint32_t);
+		n -= sizeof(uint32_t);
+	}
+
+	while (n > sizeof(char)) {
+		// copy in 1-byte chunks
+		*(unsigned char*)string = (unsigned char) c;
+		s += sizeof(char);
+		n -= sizeof(char);
 	}
 }
 
 
 void memcpy(void* dest, const void* src, size_t n) {
-	for(size_t i = 0; i < n; i++){
-		char* destc = (char*) dest;
-		char* srcc = (char*) src;
-
-		destc[i] =  srcc[i];
+	while (n > sizeof(uint64_t)) {
+		// copy in 8-byte chunks
+		*(uint64_t*)dest = *(uint64_t*)src;
+		n    -= sizeof(uint64_t);
+		src  += sizeof(uint64_t);
+		dest +=	sizeof(uint64_t);
 	}
+	
+	while (n > sizeof(uint32_t)) {
+		// copy in 4-byte chunks
+		*(uint32_t*)dest = *(uint32_t*)src;
+		n 	 -= sizeof(uint32_t);
+		src  += sizeof(uint32_t);
+		dest += sizeof(uint32_t);
+	}
+	
+	while (n > sizeof(char)) {
+		// copy in 1-byte chunks
+		*(char*)dest = *(char*)src;
+		n -= 	sizeof(char);
+		src += 	sizeof(char);
+		dest += sizeof(char);
+	}
+	
 }
 
 #define NULL (void*)0
@@ -64,7 +109,7 @@ char* strtok(char* str, char* delimiter) {
 
 
 /*
-	untestsed
+	
 
 	return value:
 		negative if str1 < str2

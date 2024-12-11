@@ -1,3 +1,6 @@
+#ifndef LIBC2_H
+#define LIBC2_H
+
 #include "syscall.h"
 #include "string.h"
 #include "stdio.h"
@@ -14,3 +17,5 @@ int tolower(int c);
 
 void _start();
 void __deinit();
+
+#endif
