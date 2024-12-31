@@ -12,7 +12,7 @@ int main() {
 
     // Character buffer that stores the read character
     // till the next iteration
-    char ch;
+    int ch;
 
     // Opening file in reading mode
     file_ptr = fopen("test.txt", "r");
@@ -28,8 +28,8 @@ int main() {
 
     // Printing what is written in file
     // character by character using loop.
-    while ((ch = fgetc(file_ptr)) != EOF) {
-        printf("%c", ch);
+    while ((ch = fgetc(file_ptr)) !=  (unsigned char)EOF ) {
+        printf("%c", (char) ch);
     }
 
     // Closing the file

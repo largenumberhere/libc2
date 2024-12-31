@@ -1,0 +1,6 @@
+make: Entering directory '/home/ubuntu/c/libc2/examples/print_contents_of_file'
+clang -o main.elf ./main.c -nostdlib  -nostartfiles ../../lib2/libc2.a -g	-L../../lib2/libc2.h
+strace	./main.elf
+Content of the file are:-: 
+GeeksforGeeks | A computer science portal for geeks
+make: Leaving directory '/home/ubuntu/c/libc2/examples/print_contents_of_file'
