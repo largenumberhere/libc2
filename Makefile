@@ -1,3 +1,4 @@
+
 _static_examples: _lib2
 	$(MAKE) -C ./examples/split_substrings
 	$(MAKE) -C ./examples/hello_world
