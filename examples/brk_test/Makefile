@@ -6,3 +6,6 @@ build:
 .PHONY: run
 run:
 	strace	./main.elf
+
+clean:
+	rm -rf main.elf

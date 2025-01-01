@@ -11,7 +11,7 @@ lib2:
 	$(MAKE) shared -C ./lib2
 	echo "Finished compiling library. Try out examples with 'make examples'"
 
-# todo: fixed shared (seperate them into run and build steps)
+# todo: fixed shared (seperate them into run and build steps) 
 examples:  _static_examples
 	echo "Finished building examples. Try out 'make run_examples'"
 
@@ -56,3 +56,14 @@ _shared_examples:
 
 clean:
 	$(MAKE) clean -C ./lib2
+
+	$(MAKE) clean -C ./examples/hello_world
+	$(MAKE) clean -C ./examples/integer_value
+	$(MAKE) clean -C ./examples/printf_string
+	$(MAKE) clean -C ./examples/length_of_string
+	$(MAKE) clean -C ./examples/args
+	$(MAKE) clean -C ./examples/print_contents_of_file
+	$(MAKE) clean -C ./examples/brk_test
+	$(MAKE) clean -C ./examples/smiley
+	$(MAKE) clean -C ./examples/dog_trie
+	$(MAKE) clean -C ./examples/malloc1

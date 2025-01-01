@@ -7,3 +7,6 @@ build:
 .PHONY: run
 run:	
 	./main.elf
+
+clean:
+	rm -rf main.elf

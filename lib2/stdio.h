@@ -17,6 +17,8 @@ typedef struct
 #define FILE FILE_PTR
 
 int fscanf(FILE *stream, const char *format, ...);
+int __isoc99_fscanf(FILE* stream, const char* format, ...);
+
 int fgetc(FILE* stream);
 int fputc(int c, FILE* stream);
 FILE* fopen(const char* pathname, const char*mode);

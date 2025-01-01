@@ -9,3 +9,6 @@ build:
 run:
 	# gdb --args ./colorize.elf smiley.bmp smiley_out.bmp
 	./colorize.elf smiley.bmp smiley_out.bmp
+
+clean:
+	rm -rf main.elf

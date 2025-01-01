@@ -15,3 +15,6 @@ shared:
 	LD_PRELOAD=../../lib2/libc2.so ./main.elf
 
 
+
+clean:
+	rm -rf main.elf

@@ -323,13 +323,8 @@ static int find_delim(char* str, char delim, int offset) {
 	return i;
 }
 
-//int fscanf(FILE *stream, const char *format, ...) {
-int __isoc99_fscanf(FILE* stream, const char* format, ...) {
+static int _fscanf_impl(FILE* stream, const char* format, va_list ap) {
 	int matches = 0;
-
-	va_list ap;
-	va_start(ap, format);
-
 	size_t len = strlen(format);
 
 	for (size_t i = 0; i < len; i++) {
@@ -350,12 +345,33 @@ int __isoc99_fscanf(FILE* stream, const char* format, ...) {
 		}
 	}
 
-	va_end(ap);
+
 
 	// printf("scanned\n");
 
 	return matches;
 
+}
+
+int fscanf(FILE* stream, const char* format, ...) {
+	va_list ap;
+	va_start(ap, format);
+	int val = _fscanf_impl(stream, format, ap);
+	va_end(ap);
+
+	return val;
+}
+
+
+
+//int fscanf(FILE *stream, const char *format, ...) {
+int __isoc99_fscanf(FILE* stream, const char* format, ...) {
+	va_list ap;
+	va_start(ap, format);
+	int val = _fscanf_impl(stream, format, ap);
+	va_end(ap);
+
+	return val;
 }
 
 int printf(char* format, ...){

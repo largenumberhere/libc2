@@ -6,3 +6,6 @@ build:
 .PHONY: run
 run:
 	./main.elf meow mrrp purr
+
+clean:
+	rm -rf main.elf

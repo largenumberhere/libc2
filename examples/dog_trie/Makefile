@@ -7,3 +7,6 @@ build:
 .PHONY: run
 run:
 	strace ./trie.elf dog_names.txt
+
+clean:
+	rm -rf main.elf
