@@ -11,7 +11,8 @@ lib2:
 	$(MAKE) shared -C ./lib2
 	echo "Finished compiling library. Try out examples with 'make examples'"
 
-examples: lib2 _shared_examples _static_examples
+# todo: fixed shared (seperate them into run and build steps)
+examples:  _static_examples
 	echo "Finished building examples. Try out 'make run_examples'"
 
 run_examples: 
