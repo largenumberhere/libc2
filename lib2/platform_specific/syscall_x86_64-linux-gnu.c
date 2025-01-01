@@ -1,3 +1,5 @@
+#include "../libc2.h"
+
 //extern void sys_exit(int status);
 //extern int sys_write(int fd, const void* buff, size_t count);
 

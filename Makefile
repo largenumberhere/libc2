@@ -8,6 +8,7 @@ CC?=gcc
 
 lib2:
 	$(MAKE) -C ./lib2/
+	$(MAKE) shared -C ./lib2
 	echo "Finished compiling library. Try out examples with 'make examples'"
 
 examples: lib2 _shared_examples _static_examples

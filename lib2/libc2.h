@@ -1,6 +1,7 @@
 #ifndef LIBC2_H
 #define LIBC2_H
 
+#include "crt0.h"
 #include "syscall.h"
 #include "string.h"
 #include "stdio.h"

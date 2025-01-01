@@ -28,8 +28,8 @@ int main() {
 
     // Printing what is written in file
     // character by character using loop.
-    while ((ch = fgetc(file_ptr)) !=  (unsigned char)EOF ) {
-        printf("%c", (char) ch);
+    while ((ch = (unsigned char)fgetc(file_ptr)) !=  (unsigned char)EOF ) {
+        printf("%c: ", (char) ch);
     }
 
     // Closing the file

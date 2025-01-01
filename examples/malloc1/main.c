@@ -29,7 +29,7 @@ int main() {
     char* a = malloc(40);
     memset(a, 1, 40);
     free(a);
-
+    
     return 0;
 
 }

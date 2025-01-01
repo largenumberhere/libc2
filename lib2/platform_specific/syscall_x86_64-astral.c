@@ -1,3 +1,5 @@
+#include "../libc2.h"
+
 // todo: fix the numbers mess
 
 // stolen from mlibc

@@ -1,3 +1,5 @@
+#include "../libc2.h"
+
  asm (".globl _start\n\t"
  	"_start:\n\t"
  	"pop %rdi\n\t"
