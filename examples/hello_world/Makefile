@@ -1,6 +1,8 @@
+CC?=gcc
+
 .PHONY: shared
 shared:
-	clang -o main.elf -nostartfiles ./main.c ../../lib2/libc2.so ../../lib2/crt0.o -L../../lib2/libc2.h
+	$(CC) -o main.elf -nostartfiles ./main.c ../../lib2/libc2.so ../../lib2/crt0.o -L../../lib2/libc2.h
 	LD_PRELOAD=../../lib2/libc2.so ./main.elf
 
 

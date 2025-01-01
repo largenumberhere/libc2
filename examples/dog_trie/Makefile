@@ -1,6 +1,8 @@
+CC?=gcc
+
 .PHONY: build
 build:
-	clang trie.c -Werror -Wextra -Wall -o trie.elf -nostdlib -nostartfiles ../../lib2/libc2.a -g
+	$(CC) trie.c -Werror -Wextra -Wall -o trie.elf -nostdlib -nostartfiles ../../lib2/libc2.a -g
 	
 .PHONY: run
 run:

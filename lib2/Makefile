@@ -1,6 +1,8 @@
 CFLAGS+=-nostdlib -g -O0 -Wno-builtin-requires-header -Wno-incompatible-library-redeclaration
-CC?=clang
-TARGET?=x86_64-linux-gnu
+
+CC?=gcc
+# assume the user is compiling for this platform by default
+TARGET?=$(shell gcc -dumpmachine)
 
 _main:
 	rm -rf ./build/*
@@ -28,3 +30,6 @@ shared: _main
 	$(CC) -c ./platform_specific/crt0_$(TARGET).c -o crt0.o $(CFLAGS) -fPIC
 
 	$(CC) -shared -o libc2.so build/*.o
+
+clean:
+	rm build/*.o

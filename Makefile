@@ -4,6 +4,8 @@
 .PHONY: examples
 .PHONY: clean
 
+CC?=gcc
+
 lib2:
 	$(MAKE) -C ./lib2/
 	echo "Finished compiling library. Try out examples with 'make examples'"

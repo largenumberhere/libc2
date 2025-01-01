@@ -13,3 +13,4 @@ Disclaimer: This library is intended primarily for x86_64 so support for other p
 If you are not using the target x86_64-gnu-linux, you will need pass in the '
 platform triple'. You can get your target triple with the command `gcc -dumpmachine`.
 - For example, arm64 uses `TARGET=aarch64-linux-gnu make` will build the library.
+- `TARGET=x86_64-astral make`
