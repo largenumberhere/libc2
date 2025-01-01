@@ -144,7 +144,7 @@ size_t sys_write(int fd, const void* string, size_t len) {
 }
 
 _Noreturn void sys_exit(int status) {
-	syscall1(60, status);
+	syscall1(SYSCALL_EXIT, status);
 	
 	while (1) {}
 }
