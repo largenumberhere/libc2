@@ -6,7 +6,7 @@ build:
 
 .PHONY: run
 run:
-	./main.elf
+	strace ./main.elf
 
 
 .PHONY: shared

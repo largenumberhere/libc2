@@ -1,4 +1,4 @@
-CFLAGS+=-nostdlib -g -O0 -Wno-builtin-requires-header -Wno-incompatible-library-redeclaration -Wno-builtin-declaration-mismatch
+CFLAGS+=-nostdlib -g -O0 -Wno-builtin-requires-header
 
 CC?=gcc
 # assume the user is compiling for this platform by default
@@ -37,3 +37,4 @@ clean:
 	rm -rf build/*.o
 	rm -f ./libc2.a
 	rm -f ./crt0.o
+	rm -f ./libc2.so
