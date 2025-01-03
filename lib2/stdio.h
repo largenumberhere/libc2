@@ -26,9 +26,11 @@ int fclose(FILE* stream);
 size_t fwrite(const void * ptr, size_t size, size_t nmemb, FILE* stream) ;
 int fseek(FILE* stream, long offset, int whence);
 size_t fread(void* ptr, size_t size, size_t nmemb, FILE* stream);
-void putc(char c, int stream);
-void puts(const char* buffer);
+int __libc2_put_char(char c, int stream);
+int putc(int c, FILE* stream);
+int puts(const char* buffer);
 int printf(char* format, ...);
+int putchar(int c); 	
 
 // unoffical
 void flush_stdout();

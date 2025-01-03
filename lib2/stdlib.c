@@ -16,5 +16,4 @@ static int exit_code;
 _Noreturn void exit(int status) {
 	exit_code = status;
 	__deinit();
-	while (1) {}	// shuts up the compiler about returning
 }

@@ -211,6 +211,7 @@ FILE* fopen(const char* pathname, const char*mode) {
 }
 
 // write file functions
+// return the character written as an unsigned char cast to an int or EOF on error.
 int fputc(int c, FILE* stream) {
 	sys_write(stream->fd, &c, 1);
 	return (unsigned char) c;
@@ -229,6 +230,7 @@ int fseek(FILE* stream, long offset, int whence) {
 
 		return 0;
 	} else {
+		UNIMPLEMENTED();
 		return -1;
 	}
 
@@ -239,22 +241,31 @@ int fseek(FILE* stream, long offset, int whence) {
 static char stdout_buffer[129] = {0}; 
 static size_t stdout_buffcur = 0;
 
-void putc(char c, int stream) {
-	if (stream == 1) {
-		stdout_buffer[stdout_buffcur++] = c;
-		
-		if (stdout_buffcur >= 128 || c=='\n') {
-			sys_write(1, stdout_buffer, stdout_buffcur);
-			stdout_buffcur = 0;		
-		} 
-		
-		
-	}
-	else {
-		printf("unsupported stream used '%i'\n", stream);
-		UNIMPLEMENTED();
-	}
+
+int putc(int c, FILE* stream) {
+	return fputc(c, stream);
 }
+
+// return the character written as an unsigned char cast to an int or EOF on error.
+int __libc2_put_char(char c, int stream) {
+	sys_write(1, &c, 1);
+	return (int) (unsigned char) c;
+	// if (stream == 1) {
+	// 	stdout_buffer[stdout_buffcur++] = c;
+		
+	// 	if (stdout_buffcur >= 128 || c=='\n') {
+	// 		sys_write(1, stdout_buffer, stdout_buffcur+1);
+	// 		stdout_buffcur = 0;		
+	// 	} 
+		
+		
+	// }
+	// else {
+	// 	printf("unsupported stream used '%i'\n", stream);
+	// 	UNIMPLEMENTED();
+	// }
+}
+
 
 void flush_stdout() {
 	if (stdout_buffcur > 0) {
@@ -263,16 +274,25 @@ void flush_stdout() {
 	}
 }
 
-void puts(const char* buffer) {
+// return the character written as an unsigned char cast to an int or EOF on error.
+int putchar(int c) {
+	__libc2_put_char(c, 1);
+	return (unsigned char) c;
+}	
+
+// return a nonnegative number on success, or EOF on error.
+int puts(const char* buffer) {
 	size_t len = strlen(buffer);
 	for (size_t i = 0; i < len; i++) {
-		putc(buffer[i], 1);
+		__libc2_put_char(buffer[i], 1);
 	}
+
+	return len;
 }
 
 static void puts_l(const char* buffer, size_t len) {
 	for(size_t i = 0; i < len; i++) {
-		putc(buffer[i], 1);
+		__libc2_put_char(buffer[i], 1);
 	}
 }
 
@@ -287,7 +307,7 @@ static void write_hex(size_t val) {
 
 static void write_int(int val) {
 	if (val < 0) {
-		putc('-', 1);
+		__libc2_put_char('-', 1);
 		val = -val;
 	}
 
@@ -380,7 +400,11 @@ int printf(char* format, ...){
 	va_start(pva, format);
 	
 	size_t len = strlen(format);
-	int arg_pos = 0;
+	// int arg_pos = 0;
+
+	if (len == 0) {
+		return 0;
+	}
 
 	// int ignore_count = 0;
 	int i = 0;
@@ -395,10 +419,10 @@ int printf(char* format, ...){
 			i+=2;
 		} else if (strncmp(format+i, "%c", 2) == 0) {
 			char c = (char) va_arg(pva, int);
-			putc(c, 1);
+			__libc2_put_char(c, 1);
 			i+=2;
 		} else if (strncmp(format+i, "%%",2) == 0) {
-			putc('%', 1);
+			__libc2_put_char('%', 1);
 			i+=2;
 		}
 		else if(strncmp(format+i, "%x",2)==0) {
@@ -408,9 +432,10 @@ int printf(char* format, ...){
 		} else if (strncmp(format+i, "%",1)==0) {
 			perror(format);
 			UNIMPLEMENTED();
+			i+=1;
 			
 		} else {
-			putc(format[i], 1);
+			__libc2_put_char(*(format+i), 1);
 			i+=1;
 		}
 	}

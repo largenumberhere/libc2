@@ -1,8 +1,9 @@
 #include "string.h"
 #include <stdint.h>
+#include "debug_util.h"
 #define size_t unsigned long long
 
-void memset(void* s, int c, size_t n){
+void* memset(void* s, int c, size_t n){
 	char* string = s;
 	
 	char eight[8];
@@ -31,10 +32,12 @@ void memset(void* s, int c, size_t n){
 		s += sizeof(char);
 		n -= sizeof(char);
 	}
+
+	return s;
 }
 
 
-void memcpy(void* dest, const void* src, size_t n) {
+void* memcpy(void* dest, const void* src, size_t n) {
 	while (n > sizeof(uint64_t)) {
 		// copy in 8-byte chunks
 		*(uint64_t*)dest = *(uint64_t*)src;
@@ -58,6 +61,8 @@ void memcpy(void* dest, const void* src, size_t n) {
 		src += 	sizeof(char);
 		dest += sizeof(char);
 	}
+
+	return dest;
 	
 }
 
@@ -139,7 +144,13 @@ int strncmp(const char* s1, const char* s2, size_t n) {
 }
 
 int strcmp(const char* s1, const char* s2) {
-	return strncmp(s1, s2, (size_t)-1);
+	// silence the maximum size error in gcc
+	size_t dummy = -1;
+	if (dummy > PTRDIFF_MAX) {
+		
+	}
+
+	return strncmp(s1, s2, dummy);
 }
 
 
