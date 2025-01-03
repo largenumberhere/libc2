@@ -56,10 +56,13 @@ int exit_code = 0;
 void __deinit(){
 	flush_stdout();
 	sys_exit(exit_code);
+
+	while (1) {}	// In case anything we don't segfault
 }
 
 void __init(){
-
+	char* string = "   >--- Starting libc2 ---<\n";
+	sys_write(1, string, strlen(string));
 }
 
 static void collect_args(int argc, char* first_arg, char** out){

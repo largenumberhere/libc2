@@ -1,6 +1,7 @@
 #ifndef DEBUG_UTIL_H
 #define DEBUG_UTIL_H
 #include "stdio.h"
+#include "stdlib.h"
 #define UNIMPLEMENTED() \
 	perror("Unimplemented! ");\
 	perror(__FILE__);\

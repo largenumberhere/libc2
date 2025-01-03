@@ -12,7 +12,7 @@
 
 
 
-int printf(char* string, ...);
+// int printf(char* string, ...);
 void perror(const char* str);
 int tolower(int c);
 

@@ -9,13 +9,13 @@
 #define EMPTY 0
 
 static size_t syscall6(int id, size_t reg1, size_t reg2, size_t reg3, size_t reg4, size_t reg5, size_t reg6) {
-	register size_t rax asm("rax") = id;
-	register size_t rdi asm("rdi") = reg1;
-	register size_t rsi asm("rsi") = reg2;
-	register size_t rdx asm("rdx") = reg3;
-	register size_t r10 asm("r10") = reg4;
-	register size_t r8  asm("r8")  = reg5;
-	register size_t r9  asm("r9")  = reg6; 
+	volatile register size_t rax asm("rax") = (size_t)id;
+	volatile register size_t rdi asm("rdi") = (size_t)reg1;
+	volatile register size_t rsi asm("rsi") = (size_t)reg2;
+	volatile register size_t rdx asm("rdx") = (size_t)reg3;
+	volatile register size_t r10 asm("r10") = (size_t)reg4;
+	volatile register size_t r8  asm("r8")  = (size_t)reg5;
+	volatile register size_t r9  asm("r9")  = (size_t)reg6; 
 
 	asm volatile(
 		"syscall"
@@ -61,7 +61,7 @@ size_t sys_read(int fd, char* buffer, size_t count) {
 }
 
 size_t sys_brk(size_t brk) {
-    size_t brk_val = syscall1(12,(size_t) brk);
+    size_t brk_val = syscall1((size_t)12,(size_t) brk);
     return (size_t) brk_val;
 }
 
