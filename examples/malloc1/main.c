@@ -19,7 +19,7 @@ int main() {
 
     free(i1);
     char* i1b = malloc(8);
-    memset(i1b, 1, 12);
+    memset(i1b, 1, 8);
 
     free(i0b);
     free(i1b);
