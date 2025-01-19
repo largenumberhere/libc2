@@ -13,7 +13,12 @@ int abs(int j) {
 
 static int exit_code;
 
-_Noreturn void exit(int status) {
+#define _NO_RETURN_SUFFIX 
+#define _NO_RETURN_PREFIX _Noreturn
+
+
+_NO_RETURN_PREFIX void exit(int status) {
 	exit_code = status;
 	__deinit();
-}
+	while (1) {}
+} _NO_RETURN_SUFFIX;

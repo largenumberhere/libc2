@@ -300,7 +300,7 @@ void try_shrink() {
         size_t excess_bytes = (size_t) nearest_page((ssize_t)alloc_start+(ssize_t)alloc_cap) - (size_t) end_rounded;
         unmap_alloc(end_rounded, excess_bytes);
         alloc_cap-=excess_bytes;
-        printf("alloc_cap = %x\n", alloc_cap);
+        printf("alloc_cap = %llx\n", alloc_cap);
     }
 }
 
@@ -359,7 +359,7 @@ void free(void* ptr) {
     }
     
     if(!mark_freed(ptr)) {
-        printf("failed to free memory %x\n", ptr);
+        printf("failed to free memory %llx\n", (size_t)ptr);
     }
     
     while (purge()!=PURGE_END){}

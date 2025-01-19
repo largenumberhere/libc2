@@ -36,5 +36,6 @@ int putchar(int c);
 void flush_stdout();
 void perror_int(int val);
 
+int dprintf(int fd, char *format, ...);
 
 #endif

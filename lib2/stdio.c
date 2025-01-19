@@ -6,6 +6,8 @@
 #include <stdarg.h>
 #include "malloc.h"
 #include "debug_util.h"
+#include <stdint.h>
+#include <stdbool.h>
 
 #define ssize_t signed long long
 
@@ -46,7 +48,7 @@ static void itoa(size_t val, int* len_out, char*buff_out) {
 
 	int len = 0;
 	for (ssize_t i = string_pos; i >=0; i--) {
-		if (tmp[i] == '\0') {continue;}
+		if (tmp[i] == '\0') {continue;}	// workaround for the off-by-one bug hidden in here
 		buff_out[len++] = tmp[i];
 	}
 	
@@ -55,7 +57,7 @@ static void itoa(size_t val, int* len_out, char*buff_out) {
 }
 
 static void itoa_hex(size_t val, int* len_out, char*buff_out) {
-	// 32 is more than big enough because the max a size_t can hold is 20 digits long
+	// 32 is more than big enough because the max a size_t can hold is `0x7FFFFFFFFFFFFFFF`, 16 digits long
 	
 	if (val ==0) {
 		buff_out[0] = '0';
@@ -84,15 +86,10 @@ static void itoa_hex(size_t val, int* len_out, char*buff_out) {
 		tmp[string_pos++] = m;
 	}
 	
-	size_t i = string_pos;
-	while(tmp[i]=='\0') {
-		i--;
-	}
-
 	// reverse it
 	int len = 0;
 	for (ssize_t i = (ssize_t)string_pos; i >=0; i--) {
-		//if (tmp[i] == '\0') {continue;}
+		if (tmp[i] == '\0') {continue;}	// workaround for the off-by-one bug hidden in here
 		buff_out[len++] = tmp[i];
 	}
 	
@@ -248,7 +245,7 @@ int putc(int c, FILE* stream) {
 
 // return the character written as an unsigned char cast to an int or EOF on error.
 int __libc2_put_char(char c, int stream) {
-	sys_write(1, &c, 1);
+	sys_write(stream, &c, 1);
 	return (int) (unsigned char) c;
 	// if (stream == 1) {
 	// 	stdout_buffer[stdout_buffcur++] = c;
@@ -394,54 +391,212 @@ int __isoc99_fscanf(FILE* stream, const char* format, ...) {
 	return val;
 }
 
-int printf(char* format, ...){
-	va_list pva;
+// check for the existence of b in the start of a
+static bool has_prefix(char* string, char* b) {
+        size_t b_len = strlen(b);
 
-	va_start(pva, format);
-	
-	size_t len = strlen(format);
-	// int arg_pos = 0;
+        int value = strncmp(string, b, b_len);
 
-	if (len == 0) {
-		return 0;
-	}
+        if (value == 0) {
+                return true;
+        }
+        else {
+                return false;
+        }
 
-	// int ignore_count = 0;
-	int i = 0;
-	for(; i < len; ){
-		if (strncmp(format+i, "%i", 2)==0 || strncmp(format+i, "%d", 2) == 0) {
-			int a = va_arg(pva, int);
-			write_int(a);
-			i+=2;
-		} else if (strncmp(format+i, "%s", 2) == 0) {
-			char* s = va_arg(pva, char*);
-			puts(s);
-			i+=2;
-		} else if (strncmp(format+i, "%c", 2) == 0) {
-			char c = (char) va_arg(pva, int);
-			__libc2_put_char(c, 1);
-			i+=2;
-		} else if (strncmp(format+i, "%%",2) == 0) {
-			__libc2_put_char('%', 1);
-			i+=2;
-		}
-		else if(strncmp(format+i, "%x",2)==0) {
-			size_t h = va_arg(pva, size_t);
-			write_hex((size_t)h);
-			i+=2;
-		} else if (strncmp(format+i, "%",1)==0) {
-			perror(format);
-			UNIMPLEMENTED();
-			i+=1;
-			
-		} else {
-			__libc2_put_char(*(format+i), 1);
-			i+=1;
-		}
-	}
-	
-	va_end(pva);
-
-	return 0;
 }
+
+
+
+static int __fmt(int fd, char* format, va_list *args) {
+	if (fd!=1) {
+		perror("only file descriptor one is currently supported");
+		UNIMPLEMENTED()				
+	} 
+
+	size_t format_len = strlen(format);
+	
+	// check for plain format string
+	bool has_percent = false;
+	for (ssize_t i = 0; i < format_len; i++) {
+		if (format[i] == '%') {
+			has_percent = true;
+			break;
+		}
+	}
+	
+	// handle plain string
+	if (!has_percent) {
+		for (ssize_t i = 0; i < format_len; i++) {
+			__libc2_put_char(format[i], fd);
+		}
+
+		return format_len;
+	}
+	
+	// handle formatted string
+	int printed_count = 0;
+	ssize_t cursor = 0;
+	while (true) {
+		if (cursor >= format_len) {
+			break;
+		}
+
+		// likely a format specifier
+		if (format[cursor] == '%') {
+			cursor++;
+			// bounds check
+			if (cursor >= format_len) {
+				// treat a trailing percent like a normal character
+				__libc2_put_char(format[cursor], fd);
+				cursor++;
+				printed_count++;
+				continue;
+			}
+
+			// check for another percent sign 
+			if (has_prefix(format+cursor, "%")) {
+				// no format, just a percent sign
+				__libc2_put_char(format[cursor], fd);
+				printed_count++;
+				cursor++;
+				continue;
+			
+			} else if (has_prefix(format+cursor, "i")== 0 || has_prefix(format+cursor, "d")) {
+				// integer format
+				int value = va_arg(*args, int);
+				write_int(value);
+				printed_count ++; // todo: make this correct
+				cursor++;
+				continue;
+
+			} else if (has_prefix(format+cursor, "x")) {
+				// hex integer format
+				int value = va_arg(*args, int);
+				write_hex((size_t)value);
+				printed_count ++;	// todo: make this correct
+				cursor++;
+				continue;
+
+			} else if (has_prefix(format+cursor, "llx")) {
+				// long long integer format
+				size_t value = va_arg(*args, size_t);
+				write_hex(value);
+				printed_count ++;	// todo: make this correct
+				cursor+=3;
+				continue;
+
+			} else if (has_prefix(format+cursor, "s")) {
+				// string format
+				char* string = va_arg(*args, char*);
+				for (ssize_t i = 0; i < strlen(string) ;i++) {
+					__libc2_put_char(string[i], fd);
+					printed_count ++;
+				}
+				cursor++;
+				continue;
+
+			} else if (has_prefix(format+cursor, "c")) {
+				// char format
+				char c = (char) va_arg(*args, int);	// va_arg promotes small sizes up to ints of to 32-bits
+				__libc2_put_char(c, fd);
+				cursor+=1;
+				continue;
+
+			} 
+			
+			else {
+				UNIMPLEMENTED()
+			}
+		} else {
+			__libc2_put_char(format[cursor], fd);
+			cursor ++;
+		}
+	}
+
+	return printed_count;
+	
+}
+
+int dprintf(int fd, char *format, ...) {
+	va_list args;
+	va_start(args, format);
+	
+
+	int count = __fmt(fd, format, &args);
+
+
+	va_end(args);
+
+	return count;
+}
+
+
+int printf(char *format, ...) {
+	va_list args;
+	va_start(args, format);
+
+	
+	int count = __fmt(1, format, &args);
+
+	va_end(args);
+
+	return count;
+
+}
+
+// int printf(char* format, ...){
+// 	va_list pva;
+
+// 	va_start(pva, format);
+	
+// 	size_t len = strlen(format);
+// 	// int arg_pos = 0;
+
+// 	if (len == 0) {
+// 		return 0;
+// 	}
+
+// 	// int ignore_count = 0;
+// 	int i = 0;
+// 	for(; i < len; ){
+// 		if (strncmp(format+i, "%i", 2)==0 || strncmp(format+i, "%d", 2) == 0) {
+// 			int a = va_arg(pva, int);
+// 			write_int(a);
+// 			i+=2;
+// 		} else if (strncmp(format+i, "%s", 2) == 0) {
+// 			char* s = va_arg(pva, char*);
+// 			puts(s);
+// 			i+=2;
+// 		} else if (strncmp(format+i, "%c", 2) == 0) {
+// 			char c = (char) va_arg(pva, int);
+// 			__libc2_put_char(c, 1);
+// 			i+=2;
+// 		} else if (strncmp(format+i, "%%",2) == 0) {
+// 			__libc2_put_char('%', 1);
+// 			i+=2;
+// 		}
+// 		else if(strncmp(format+i, "%x",2)==0) {
+// 			int h = va_arg(pva, int);
+// 			write_hex((size_t)h);
+// 			i+=2;
+// 		} else if (strncmp(format+i, "%llx", 4) == 0) {
+// 			size_t h = va_arg(pva, size_t);
+// 			write_hex((size_t)h);
+// 			i+=4;
+
+// 		} else if (strncmp(format+i, "%",1)==0) {
+// 			perror(format);
+// 			UNIMPLEMENTED();
+// 			i+=1;
+// 		} else {
+// 			__libc2_put_char(*(format+i), 1);
+// 			i+=1;
+// 		}
+// 	}
+	
+// 	va_end(pva);
+
+// 	return 0;
+// }
 
