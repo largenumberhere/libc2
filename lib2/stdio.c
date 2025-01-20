@@ -462,7 +462,7 @@ static int __fmt(int fd, char* format, va_list *args) {
 				cursor++;
 				continue;
 			
-			} else if (has_prefix(format+cursor, "i")== 0 || has_prefix(format+cursor, "d")) {
+			} else if (has_prefix(format+cursor, "i") || has_prefix(format+cursor, "d")) {
 				// integer format
 				int value = va_arg(*args, int);
 				write_int(value);
