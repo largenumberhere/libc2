@@ -89,3 +89,9 @@ int sys_munmap(void* addr, size_t length) {
 int sys_close(int fd) {
 	return syscall1(3, fd);
 }
+
+
+// file_des a pointer to 2 integers
+int sys_pipe(int* file_des) {
+    return (int)syscall1(0x16, (size_t)file_des);
+} 

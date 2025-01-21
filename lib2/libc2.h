@@ -19,4 +19,8 @@ int tolower(int c);
 void _start();
 void __deinit();
 
+// unistd.h
+int pipe(int file_descriptors_out[2]);
+signed long long read(int fd, void *buf, unsigned long long count);
+
 #endif

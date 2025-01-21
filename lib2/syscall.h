@@ -9,4 +9,7 @@ int sys_open(const char* pathname, int flags, int mode);
 void *sys_mmap(void *addr, unsigned long long length, int prot, int flags, int fd, long offset);
 int sys_munmap(void* addr, unsigned long long length);
 int sys_close(int fd);
+
+int sys_pipe(int *fd);
+
 #endif
