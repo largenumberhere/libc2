@@ -136,7 +136,7 @@ static void try_init(size_t malloc_size) {
 AlocMeta* init_meta(void* buffer, size_t alloc_len) {
     AlocMeta* a = (AlocMeta*) buffer;
     memset(a, 0, sizeof(AlocMeta));
-    a->start = buffer + sizeof(AlocMeta);
+    a->start = (void*)((char*)buffer + sizeof(AlocMeta));
     a->freed = false;
     a->len = alloc_len;
     a->next_meta = NULL;
@@ -186,7 +186,7 @@ AlocMeta* list_last() {
 // grab more memory from the OS
 void bump(size_t extra_cap) {
     size_t bytes = nearest_page((ssize_t)extra_cap);
-    map_alloc(alloc_start+alloc_cap, bytes);
+    map_alloc((void*) ((char*)alloc_start+alloc_cap), bytes);
     // memset(alloc_start+alloc_cap, 0, bytes);
     alloc_cap += bytes;
 }
@@ -213,7 +213,7 @@ AlocMeta* list_insert(size_t malloc_size) {
             // room found
             if (space >= malloc_size+sizeof(AlocMeta)) {
                 // create header
-                AlocMeta* new = init_meta(current->start+current->len, malloc_size);
+                AlocMeta* new = init_meta((void*) ((char*)current->start + current->len), malloc_size);
                 
                 // insert into linked list
                 new->next_meta = current->next_meta;
@@ -240,7 +240,7 @@ AlocMeta* list_push(size_t malloc_size) {
         bump(required - free);
     }
 
-    AlocMeta* new = init_meta(alloc_start+alloc_len, malloc_size);
+    AlocMeta* new = init_meta((void*) ((char*)alloc_start+alloc_len), malloc_size);
     if(last!=NULL) {
         last->next_meta = new;
     } else {
@@ -294,7 +294,7 @@ bool purge() {
 // if there's at least a page of memory left over from frees, give it back to the kernel
 void try_shrink() {
     AlocMeta* last = list_last();
-    void* end_ptr = last->start + last->len;
+    void* end_ptr = (void*)((char*)last->start + last->len);
     void* end_rounded = (void*) nearest_page((ssize_t)end_ptr);
     if((ssize_t)end_rounded < nearest_page((ssize_t)alloc_start+ (ssize_t)alloc_cap)) {
         size_t excess_bytes = (size_t) nearest_page((ssize_t)alloc_start+(ssize_t)alloc_cap) - (size_t) end_rounded;
