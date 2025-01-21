@@ -21,7 +21,7 @@ static size_t syscall6(int id, size_t reg1, size_t reg2, size_t reg3, size_t reg
 		"syscall"
 		: "+r" (rax)
 		: "r" (rax), "r" (rdi), "r" (rsi), "r" (rdx), "r" (r10), "r" (r8), "r" (r9)
-		: "memory"
+		: "memory", "rcx", "r11"
 	);
 
 	return rax;
