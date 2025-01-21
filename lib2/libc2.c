@@ -107,3 +107,13 @@ int tolower(int c) {
 void perror(const char* str) {
 	sys_write(2, str, strlen(str));
 }
+
+
+// unitstd.h
+int pipe(int file_descriptors_out[2]) {
+	return sys_pipe(file_descriptors_out);
+}
+
+ssize_t read(int fd, void *buf, size_t count) {
+	return sys_read(fd, buf, count);
+}
