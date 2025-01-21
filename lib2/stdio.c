@@ -11,6 +11,13 @@
 
 #define ssize_t signed long long
 
+static FILE stdout_handle = {
+	.fd = 1
+};
+
+static FILE *stdout = &stdout_handle;
+ 
+
 
 // static char file_buffers[128][32] = {0};
 // static size_t file_buffers_pos[32] = {0};
@@ -235,6 +242,7 @@ int fseek(FILE* stream, long offset, int whence) {
 
 
 
+
 static char stdout_buffer[129] = {0}; 
 static size_t stdout_buffcur = 0;
 
@@ -287,22 +295,22 @@ int puts(const char* buffer) {
 	return len;
 }
 
-static void puts_l(const char* buffer, size_t len) {
+static void puts_l(const char* buffer, size_t len, int fd) {
 	for(size_t i = 0; i < len; i++) {
-		__libc2_put_char(buffer[i], 1);
+		__libc2_put_char(buffer[i], fd);
 	}
 }
 
 
-static void write_hex(size_t val) {
+static void write_hex(size_t val, int fd) {
 	int len;
 	char buff[32] = {0};
 	itoa_hex(val, &len, buff);
-	puts_l("0x",2);
-	puts_l(buff, len);
+	puts_l("0x",2, fd);
+	puts_l(buff, len, fd);
 }
 
-static void write_int(int val) {
+static void write_int(int val, int fd) {
 	if (val < 0) {
 		__libc2_put_char('-', 1);
 		val = -val;
@@ -312,7 +320,7 @@ static void write_int(int val) {
 	char buff[32] = {0};
 	itoa((size_t)val, &len, (char*) &buff);
 	
-	puts_l(buff, len);
+	puts_l(buff, len, fd);
 	//sys_write(1, buff, len);
 	//sys_write(1, "write_int", 10);
 }
@@ -409,10 +417,7 @@ static bool has_prefix(char* string, char* b) {
 
 
 static int __fmt(int fd, char* format, va_list *args) {
-	if (fd!=1) {
-		perror("only file descriptor one is currently supported");
-		UNIMPLEMENTED()				
-	} 
+
 
 	size_t format_len = strlen(format);
 	
@@ -465,7 +470,7 @@ static int __fmt(int fd, char* format, va_list *args) {
 			} else if (has_prefix(format+cursor, "i") || has_prefix(format+cursor, "d")) {
 				// integer format
 				int value = va_arg(*args, int);
-				write_int(value);
+				write_int(value, fd);
 				printed_count ++; // todo: make this correct
 				cursor++;
 				continue;
@@ -473,7 +478,7 @@ static int __fmt(int fd, char* format, va_list *args) {
 			} else if (has_prefix(format+cursor, "x")) {
 				// hex integer format
 				int value = va_arg(*args, int);
-				write_hex((size_t)value);
+				write_hex((size_t)value, fd);
 				printed_count ++;	// todo: make this correct
 				cursor++;
 				continue;
@@ -481,7 +486,7 @@ static int __fmt(int fd, char* format, va_list *args) {
 			} else if (has_prefix(format+cursor, "llx")) {
 				// long long integer format
 				size_t value = va_arg(*args, size_t);
-				write_hex(value);
+				write_hex(value, fd);
 				printed_count ++;	// todo: make this correct
 				cursor+=3;
 				continue;
@@ -543,6 +548,18 @@ int printf(char *format, ...) {
 
 	return count;
 
+}
+
+int fprintf(FILE* stream, char *format, ...) {
+	va_list args;
+	va_start(args, format);
+
+	int fd = stream->fd;
+	int count = __fmt(fd, format, &args);
+
+	va_end(args);
+
+	return count;
 }
 
 // int printf(char* format, ...){
