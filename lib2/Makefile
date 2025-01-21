@@ -1,4 +1,4 @@
-CFLAGS+=-nostdlib -g -O0 -Wno-builtin-requires-header
+CFLAGS+=-nostdlib -g -O0 -ffreestanding
 
 CC?=gcc
 # assume the user is compiling for this platform by default
