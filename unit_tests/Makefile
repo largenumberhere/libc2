@@ -23,7 +23,7 @@ GLIBC_FLAGS=
 .PHONY: all
 
 
-all: clean strcmp1 strncmp1 strlen1
+all: clean strcmp1 strncmp1 strlen1 dprintf1
 
 clean:
 	rm -rf ./bin/*
@@ -49,6 +49,15 @@ strcmp1: strcmp1.c
 
 .PHONY: strlen1
 strlen1: strlen1.c
+	$(CC) $^ -o ./bin/$@-glibc.elf $(GLIBC_FLAGS)
+	./bin/$@-glibc.elf
+
+	$(CC) $^ -o ./bin/$@-libc2.elf $(LIBC2_FLAGS)
+	./bin/$@-libc2.elf
+	echo Test: $@ passed
+
+.PHONY: dprintf1
+dprintf1: dprintf1.c
 	$(CC) $^ -o ./bin/$@-glibc.elf $(GLIBC_FLAGS)
 	./bin/$@-glibc.elf
 
